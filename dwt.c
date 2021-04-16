@@ -33,26 +33,26 @@ float fclampf(float x, float a, float b)
 	return fminf(fmaxf(x, a), b);
 }
 
-void yuv2rgb(float *io)
+void ycbcr2rgb(float *io)
 {
 	float WR = 0.2126f;
 	float WB = 0.0722f;
 	float WG = 1.0f - WR - WB;
-	float UMAX = 0.436f;
-	float VMAX = 0.615f;
+	float UMAX = 0.5f;
+	float VMAX = 0.5f;
 	float y = io[0], u = io[1], v = io[2];
 	io[0] = fclampf(y + (1.0f - WR) / VMAX * v, 0.0f, 1.0f);
 	io[1] = fclampf(y - WB * (1.0f - WB) / (UMAX * WG) * u - WR * (1.0f - WR) / (VMAX * WG) * v, 0.0f, 1.0f);
 	io[2] = fclampf(y + (1.0f - WB) / UMAX * u, 0.0f, 1.0f);
 }
 
-void rgb2yuv(float *io)
+void rgb2ycbcr(float *io)
 {
 	float WR = 0.2126f;
 	float WB = 0.0722f;
 	float WG = 1.0f - WR - WB;
-	float UMAX = 0.436f;
-	float VMAX = 0.615f;
+	float UMAX = 0.5f;
+	float VMAX = 0.5f;
 	float r = io[0], g = io[1], b = io[2];
 	io[0] = fclampf(WR * r + WG * g + WB * b, 0.0f, 1.0f);
 	io[1] = fclampf(UMAX / (1.0f - WB) * (b - io[0]), -UMAX, UMAX);
@@ -82,16 +82,16 @@ struct image *new_image(char *name, int width, int height)
 	return image;
 }
 
-void yuv_image(struct image *image)
+void ycbcr_image(struct image *image)
 {
 	for (int i = 0; i < image->total; i++)
-		rgb2yuv(image->buffer + 3 * i);
+		rgb2ycbcr(image->buffer + 3 * i);
 }
 
 void rgb_image(struct image *image)
 {
 	for (int i = 0; i < image->total; i++)
-		yuv2rgb(image->buffer + 3 * i);
+		ycbcr2rgb(image->buffer + 3 * i);
 }
 
 struct image *read_ppm(char *name)
@@ -246,7 +246,7 @@ void blah(float *output, float *input, int N, float min, float max)
 void doit(struct image *output, struct image *input)
 {
 	int N = output->width;
-	yuv_image(input);
+	ycbcr_image(input);
 	blah(output->buffer + 0, input->buffer + 0, N, 64, 128);
 	blah(output->buffer + 1, input->buffer + 1, N, 16, 32);
 	blah(output->buffer + 2, input->buffer + 2, N, 16, 32);
