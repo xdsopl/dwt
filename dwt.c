@@ -253,6 +253,11 @@ void doit(struct image *output, struct image *input)
 	rgb_image(output);
 }
 
+int pow2(int N)
+{
+	return !(N & (N - 1));
+}
+
 int main(int argc, char **argv)
 {
 	if (argc != 3) {
@@ -260,7 +265,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	struct image *input = read_ppm(argv[1]);
-	if (!input)
+	if (!input || input->width != input->height || !pow2(input->width))
 		return 1;
 	struct image *output = new_image(argv[2], input->width, input->height);
 
