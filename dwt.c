@@ -12,7 +12,7 @@ You should have received a copy of the CC0 Public Domain Dedication along with t
 
 float srgb(float v)
 {
-	float K0 = 0.03928f;
+	float K0 = 0.04045f;
 	float a = 0.055f;
 	float phi = 12.92f;
 	float gamma = 2.4f;
@@ -21,7 +21,7 @@ float srgb(float v)
 
 float linear(float v)
 {
-	float K0 = 0.03928f;
+	float K0 = 0.04045f;
 	float a = 0.055f;
 	float phi = 12.92f;
 	float gamma = 2.4f;
