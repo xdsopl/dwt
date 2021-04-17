@@ -214,7 +214,7 @@ float quantization(int i, int j, int N, float min, float max)
 //	return min + (max - min) * (N * N - (i * j)) / (float)(N * N);
 }
 
-void blah(float *output, float *input, int N, float min, float max)
+int blah(float *output, float *input, int N, float min, float max)
 {
 	for (int i = 0; i < N; i++)
 		haar(output + 3 * N * i, input + 3 * N * i, N, 3);
@@ -223,11 +223,14 @@ void blah(float *output, float *input, int N, float min, float max)
 	for (int i = 0; i < N; i++)
 		haar(output + 3 * i, input + 3 * i, N, 3 * N);
 
+	int zeros = 0;
 #if 1
 	for (int j = 0; j < N; j++) {
 		for (int i = 0; i < N; i++) {
 			float q = quantization(i, j, N, min, max);
-			output[(N * j + i) * 3] = roundf(q * output[(N * j + i) * 3]) / q;
+			float v = roundf(q * output[(N * j + i) * 3]) / q;
+			output[(N * j + i) * 3] = v;
+			zeros += v == 0.f;
 		}
 	}
 #endif
@@ -241,15 +244,19 @@ void blah(float *output, float *input, int N, float min, float max)
 	for (int i = 0; i < N; i++)
 		ihaar(output + 3 * N * i, input + 3 * N * i, N, 3);
 #endif
+	return zeros;
 }
 
 void doit(struct image *output, struct image *input)
 {
 	int N = output->width;
 	ycbcr_image(input);
-	blah(output->buffer + 0, input->buffer + 0, N, 64, 128);
-	blah(output->buffer + 1, input->buffer + 1, N, 16, 32);
-	blah(output->buffer + 2, input->buffer + 2, N, 16, 32);
+	int y = blah(output->buffer + 0, input->buffer + 0, N, 64, 128);
+	fprintf(stderr, "Y' %d%% zeros\n", (100 * y) / (N * N));
+	int b = blah(output->buffer + 1, input->buffer + 1, N, 16, 32);
+	fprintf(stderr, "Cb %d%% zeros\n", (100 * b) / (N * N));
+	int r = blah(output->buffer + 2, input->buffer + 2, N, 16, 32);
+	fprintf(stderr, "Cr %d%% zeros\n", (100 * r) / (N * N));
 	rgb_image(output);
 }
 
