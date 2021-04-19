@@ -228,8 +228,8 @@ int blah(float *output, float *input, int N, float min, float max)
 	for (int j = 0; j < N; j++) {
 		for (int i = 0; i < N; i++) {
 			float q = quantization(i, j, N, min, max);
-			float v = roundf(q * output[(N * j + i) * 3]) / q;
-			output[(N * j + i) * 3] = v;
+			float v = nearbyintf(q * output[(N * j + i) * 3]);
+			output[(N * j + i) * 3] = v / q;
 			zeros += v == 0.f;
 		}
 	}
