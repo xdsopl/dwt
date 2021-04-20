@@ -17,7 +17,7 @@ void blah(float *output, float *input, int N, int Q)
 		output[i * 3] = nearbyintf(Q * input[i * 3]);
 }
 
-void doit(float *output, struct image *input, short *quant)
+void doit(float *output, struct image *input, int *quant)
 {
 	int N = input->width;
 	ycbcr_image(input);
@@ -36,7 +36,7 @@ int main(int argc, char **argv)
 	if (!input || input->width != input->height || !pow2(input->width))
 		return 1;
 	float *output = malloc(sizeof(float) * 3 * input->total);
-	short head[4] = { input->width, 128, 32, 32 };
+	int head[4] = { input->width, 128, 32, 32 };
 	doit(output, input, head+1);
 	FILE *file = fopen(argv[2], "w");
 	if (!file) {
@@ -49,7 +49,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	for (int i = 0; i < 3 * input->total; i++) {
-		short tmp = output[i];
+		int tmp = output[i];
 		if (fwrite(&tmp, sizeof(tmp), 1, file) != 1) {
 			fprintf(stderr, "could not write to file \"%s\".\n", argv[2]);
 			fclose(file);

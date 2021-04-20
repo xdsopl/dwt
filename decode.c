@@ -17,7 +17,7 @@ void blah(float *output, float *input, int N, int Q)
 		ihaar(output + 3 * N * i, input + 3 * N * i, N, 3);
 }
 
-void doit(struct image *output, float *input, short *quant)
+void doit(struct image *output, float *input, int *quant)
 {
 	int N = output->width;
 	blah(output->buffer + 0, input + 0, N, quant[0]);
@@ -37,7 +37,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "could not open \"%s\" file to read.\n", argv[1]);
 		return 1;
 	}
-	short head[4];
+	int head[4];
 	if (fread(head, sizeof(head), 1, file) != 1) {
 		fprintf(stderr, "could not read from file \"%s\".\n", argv[1]);
 		fclose(file);
@@ -45,7 +45,7 @@ int main(int argc, char **argv)
 	}
 	float *input = malloc(sizeof(float) * 3 * head[0] * head[0]);
 	for (int i = 0; i < 3 * head[0] * head[0]; i++) {
-		short tmp;
+		int tmp;
 		if (fread(&tmp, sizeof(tmp), 1, file) != 1) {
 			fprintf(stderr, "could not read from file \"%s\".\n", argv[1]);
 			fclose(file);
