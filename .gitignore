@@ -1,3 +1,5 @@
-dwt
+encode
+decode
 *.ppm
+*.dwt
 .*.swp

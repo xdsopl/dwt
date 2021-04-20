@@ -206,80 +206,8 @@ void ihaar(float *out, float *in, int N, int S)
 	}
 }
 
-float quantization(int i, int j, int N, float min, float max)
-{
-	return i < N/4 && j < N/4 ? max : min;
-//	return min + (max - min) * powf(2.0f, - (i + j));
-//	return min + (max - min) * (2 * N - (i + j)) / (2.0f * N);
-//	return min + (max - min) * (N * N - (i * j)) / (float)(N * N);
-}
-
-int blah(float *output, float *input, int N, float min, float max)
-{
-	for (int i = 0; i < N; i++)
-		haar(output + 3 * N * i, input + 3 * N * i, N, 3);
-	for (int i = 0; i < N * N; i++)
-		input[i * 3] = output[i * 3];
-	for (int i = 0; i < N; i++)
-		haar(output + 3 * i, input + 3 * i, N, 3 * N);
-
-	int zeros = 0;
-#if 1
-	for (int j = 0; j < N; j++) {
-		for (int i = 0; i < N; i++) {
-			float q = quantization(i, j, N, min, max);
-			float v = nearbyintf(q * output[(N * j + i) * 3]);
-			output[(N * j + i) * 3] = v / q;
-			zeros += v == 0.f;
-		}
-	}
-#endif
-#if 1
-	for (int i = 0; i < N * N; i++)
-		input[i * 3] = output[i * 3];
-	for (int i = 0; i < N; i++)
-		ihaar(output + 3 * i, input + 3 * i, N, 3 * N);
-	for (int i = 0; i < N * N; i++)
-		input[i * 3] = output[i * 3];
-	for (int i = 0; i < N; i++)
-		ihaar(output + 3 * N * i, input + 3 * N * i, N, 3);
-#endif
-	return zeros;
-}
-
-void doit(struct image *output, struct image *input)
-{
-	int N = output->width;
-	ycbcr_image(input);
-	int y = blah(output->buffer + 0, input->buffer + 0, N, 64, 128);
-	fprintf(stderr, "Y' %d%% zeros\n", (100 * y) / (N * N));
-	int b = blah(output->buffer + 1, input->buffer + 1, N, 16, 32);
-	fprintf(stderr, "Cb %d%% zeros\n", (100 * b) / (N * N));
-	int r = blah(output->buffer + 2, input->buffer + 2, N, 16, 32);
-	fprintf(stderr, "Cr %d%% zeros\n", (100 * r) / (N * N));
-	rgb_image(output);
-}
-
 int pow2(int N)
 {
 	return !(N & (N - 1));
-}
-
-int main(int argc, char **argv)
-{
-	if (argc != 3) {
-		fprintf(stderr, "usage: %s input.ppm output.ppm\n", argv[0]);
-		return 1;
-	}
-	struct image *input = read_ppm(argv[1]);
-	if (!input || input->width != input->height || !pow2(input->width))
-		return 1;
-	struct image *output = new_image(argv[2], input->width, input->height);
-
-	doit(output, input);
-
-	if (!write_ppm(output))
-		return 1;
-	return 0;
 }
 
