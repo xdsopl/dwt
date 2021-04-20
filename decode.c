@@ -6,6 +6,7 @@ You should have received a copy of the CC0 Public Domain Dedication along with t
 */
 
 #include "dwt.h"
+#include "ppm.h"
 #include "vli.h"
 #include "bits.h"
 

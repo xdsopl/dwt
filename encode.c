@@ -6,6 +6,7 @@ You should have received a copy of the CC0 Public Domain Dedication along with t
 */
 
 #include "dwt.h"
+#include "ppm.h"
 #include "vli.h"
 #include "bits.h"
 
@@ -26,6 +27,11 @@ void doit(float *output, struct image *input, int *quant)
 	blah(output + 0, input->buffer + 0, N, quant[0]);
 	blah(output + 1, input->buffer + 1, N, quant[1]);
 	blah(output + 2, input->buffer + 2, N, quant[2]);
+}
+
+int pow2(int N)
+{
+	return !(N & (N - 1));
 }
 
 int main(int argc, char **argv)
