@@ -42,10 +42,17 @@ int main(int argc, char **argv)
 	for (int i = 0; i < 4; ++i)
 		head[i] = get_vli(bits);
 	float *input = malloc(sizeof(float) * 3 * head[0] * head[0]);
-	for (int i = 0; i < 3 * head[0] * head[0]; i++) {
+	int N = 3 * head[0] * head[0];
+	for (int i = 0; i < N; i++) {
 		float val = get_vli(bits);
-		if (val && get_bit(bits))
-			val = -val;
+		if (val) {
+			if (get_bit(bits))
+				val = -val;
+		} else {
+			int cnt = get_vli(bits);
+			for (int k = 0; k < cnt; ++k)
+				input[i++] = 0;
+		}
 		input[i] = val;
 	}
 	close_reader(bits);

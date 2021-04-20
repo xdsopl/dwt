@@ -51,10 +51,20 @@ int main(int argc, char **argv)
 		return 1;
 	for (int i = 0; i < 4; ++i)
 		put_vli(bits, head[i]);
-	for (int i = 0; i < 3 * input->total; i++) {
-		put_vli(bits, fabsf(output[i]));
-		if (output[i])
+	int N = 3 * input->total;
+	for (int i = 0; i < N; i++) {
+		if (output[i]) {
+			put_vli(bits, fabsf(output[i]));
 			put_bit(bits, output[i] < 0.f);
+		} else {
+			put_vli(bits, 0);
+			int k = i + 1;
+			while (k < N && !output[k])
+				++k;
+			--k;
+			put_vli(bits, k - i);
+			i = k;
+		}
 	}
 	close_writer(bits);
 	return 0;
