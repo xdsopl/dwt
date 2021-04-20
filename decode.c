@@ -6,6 +6,8 @@ You should have received a copy of the CC0 Public Domain Dedication along with t
 */
 
 #include "dwt.h"
+#include "vli.h"
+#include "bits.h"
 
 void blah(float *output, float *input, int N, int Q)
 {
@@ -32,28 +34,20 @@ int main(int argc, char **argv)
 		fprintf(stderr, "usage: %s input.dwt output.ppm\n", argv[0]);
 		return 1;
 	}
-	FILE *file = fopen(argv[1], "r");
-	if (!file) {
-		fprintf(stderr, "could not open \"%s\" file to read.\n", argv[1]);
+	struct bits *bits = bits_reader(argv[1]);
+	if (!bits)
 		return 1;
-	}
 	int head[4];
-	if (fread(head, sizeof(head), 1, file) != 1) {
-		fprintf(stderr, "could not read from file \"%s\".\n", argv[1]);
-		fclose(file);
-		return 1;
-	}
+	for (int i = 0; i < 4; ++i)
+		head[i] = get_vli(bits);
 	float *input = malloc(sizeof(float) * 3 * head[0] * head[0]);
 	for (int i = 0; i < 3 * head[0] * head[0]; i++) {
-		int tmp;
-		if (fread(&tmp, sizeof(tmp), 1, file) != 1) {
-			fprintf(stderr, "could not read from file \"%s\".\n", argv[1]);
-			fclose(file);
-			return 1;
-		}
-		input[i] = tmp;
+		float val = get_vli(bits);
+		if (val && get_bit(bits))
+			val = -val;
+		input[i] = val;
 	}
-	fclose(file);
+	close_reader(bits);
 	struct image *output = new_image(argv[2], head[0], head[0]);
 	doit(output, input, head+1);
 	if (!write_ppm(output))

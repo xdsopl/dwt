@@ -6,6 +6,8 @@ You should have received a copy of the CC0 Public Domain Dedication along with t
 */
 
 #include "dwt.h"
+#include "vli.h"
+#include "bits.h"
 
 void blah(float *output, float *input, int N, int Q)
 {
@@ -38,25 +40,17 @@ int main(int argc, char **argv)
 	float *output = malloc(sizeof(float) * 3 * input->total);
 	int head[4] = { input->width, 128, 32, 32 };
 	doit(output, input, head+1);
-	FILE *file = fopen(argv[2], "w");
-	if (!file) {
-		fprintf(stderr, "could not open \"%s\" file to write.\n", argv[2]);
+	struct bits *bits = bits_writer(argv[2]);
+	if (!bits)
 		return 1;
-	}
-	if (fwrite(head, sizeof(head), 1, file) != 1) {
-		fprintf(stderr, "could not write to file \"%s\".\n", argv[2]);
-		fclose(file);
-		return 1;
-	}
+	for (int i = 0; i < 4; ++i)
+		put_vli(bits, head[i]);
 	for (int i = 0; i < 3 * input->total; i++) {
-		int tmp = output[i];
-		if (fwrite(&tmp, sizeof(tmp), 1, file) != 1) {
-			fprintf(stderr, "could not write to file \"%s\".\n", argv[2]);
-			fclose(file);
-			return 1;
-		}
+		put_vli(bits, fabsf(output[i]));
+		if (output[i])
+			put_bit(bits, output[i] < 0.f);
 	}
-	fclose(file);
+	close_writer(bits);
 	return 0;
 }
 
