@@ -4,7 +4,7 @@ Encoder for lossy image compression based on the discrete wavelet transformation
 Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 */
 
-#include "dwt.h"
+#include "haar.h"
 #include "ppm.h"
 #include "vli.h"
 #include "bits.h"
