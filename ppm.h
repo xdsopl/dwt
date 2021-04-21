@@ -107,7 +107,7 @@ int write_ppm(struct image *image)
 		return 0;
 	}
 	for (int i = 0; i < 3 * image->total; i++) {
-		if (EOF == fputc(255.0f * srgb(image->buffer[i]), file))
+		if (EOF == fputc(255.f * srgb(fclampf(image->buffer[i], 0.f, 1.f)), file))
 			goto eof;
 	}
 	fclose(file);
