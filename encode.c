@@ -42,12 +42,12 @@ int main(int argc, char **argv)
 	if (argc == 7)
 		mode = atoi(argv[6]);
 	int length = input->width;
-	int pixels = 3 * length * length;
+	int pixels = length * length;
 	int quant[3] = { 128, 32, 32 };
 	if (argc >= 6)
 		for (int i = 0; i < 3; ++i)
 			quant[i] = atoi(argv[3+i]);
-	float *output = malloc(sizeof(float) * pixels);
+	float *output = malloc(sizeof(float) * 3 * pixels);
 	if (mode)
 		ycbcr_image(input);
 	doit(output, input, quant);
@@ -58,18 +58,20 @@ int main(int argc, char **argv)
 	put_vli(bits, length);
 	for (int i = 0; i < 3; ++i)
 		put_vli(bits, quant[i]);
-	for (int i = 0; i < pixels; i++) {
-		if (output[i]) {
-			put_vli(bits, fabsf(output[i]));
-			put_bit(bits, output[i] < 0.f);
-		} else {
-			put_vli(bits, 0);
-			int k = i + 1;
-			while (k < pixels && !output[k])
-				++k;
-			--k;
-			put_vli(bits, k - i);
-			i = k;
+	for (int j = 0; j < 3; ++j) {
+		for (int i = 0; i < pixels; ++i) {
+			if (output[j+3*i]) {
+				put_vli(bits, fabsf(output[j+3*i]));
+				put_bit(bits, output[j+3*i] < 0.f);
+			} else {
+				put_vli(bits, 0);
+				int k = i + 1;
+				while (k < pixels && !output[j+3*k])
+					++k;
+				--k;
+				put_vli(bits, k - i);
+				i = k;
+			}
 		}
 	}
 	close_writer(bits);

@@ -35,22 +35,24 @@ int main(int argc, char **argv)
 		return 1;
 	int mode = get_bit(bits);
 	int length = get_vli(bits);
-	int pixels = 3 * length * length;
+	int pixels = length * length;
 	int quant[3];
 	for (int i = 0; i < 3; ++i)
 		quant[i] = get_vli(bits);
-	float *input = malloc(sizeof(float) * pixels);
-	for (int i = 0; i < pixels; i++) {
-		float val = get_vli(bits);
-		if (val) {
-			if (get_bit(bits))
-				val = -val;
-		} else {
-			int cnt = get_vli(bits);
-			for (int k = 0; k < cnt; ++k)
-				input[i++] = 0;
+	float *input = malloc(sizeof(float) * 3 * pixels);
+	for (int j = 0; j < 3; ++j) {
+		for (int i = 0; i < pixels; ++i) {
+			float val = get_vli(bits);
+			if (val) {
+				if (get_bit(bits))
+					val = -val;
+			} else {
+				int cnt = get_vli(bits);
+				for (int k = 0; k < cnt; ++k)
+					input[j+3*i++] = 0;
+			}
+			input[j+3*i] = val;
 		}
-		input[i] = val;
 	}
 	close_reader(bits);
 	struct image *output = new_image(argv[2], length, length);
