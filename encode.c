@@ -31,17 +31,22 @@ int pow2(int N)
 
 int main(int argc, char **argv)
 {
-	if (argc != 3) {
-		fprintf(stderr, "usage: %s input.ppm output.dwt\n", argv[0]);
+	if (argc != 3 && argc != 6 && argc != 7) {
+		fprintf(stderr, "usage: %s input.ppm output.dwt [Q0 Q1 Q2] [MODE]\n", argv[0]);
 		return 1;
 	}
 	struct image *input = read_ppm(argv[1]);
 	if (!input || input->width != input->height || !pow2(input->width))
 		return 1;
 	int mode = 1;
+	if (argc == 7)
+		mode = atoi(argv[6]);
 	int length = input->width;
 	int pixels = 3 * length * length;
 	int quant[3] = { 128, 32, 32 };
+	if (argc >= 6)
+		for (int i = 0; i < 3; ++i)
+			quant[i] = atoi(argv[3+i]);
 	float *output = malloc(sizeof(float) * pixels);
 	if (mode)
 		ycbcr_image(input);
