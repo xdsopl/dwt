@@ -23,7 +23,6 @@ void blah(float *output, float *input, int N, int Q)
 void doit(float *output, struct image *input, int *quant)
 {
 	int N = input->width;
-	ycbcr_image(input);
 	blah(output + 0, input->buffer + 0, N, quant[0]);
 	blah(output + 1, input->buffer + 1, N, quant[1]);
 	blah(output + 2, input->buffer + 2, N, quant[2]);
@@ -43,14 +42,18 @@ int main(int argc, char **argv)
 	struct image *input = read_ppm(argv[1]);
 	if (!input || input->width != input->height || !pow2(input->width))
 		return 1;
+	int mode = 1;
 	int length = input->width;
 	int pixels = 3 * length * length;
 	int quant[3] = { 128, 32, 32 };
 	float *output = malloc(sizeof(float) * pixels);
+	if (mode)
+		ycbcr_image(input);
 	doit(output, input, quant);
 	struct bits *bits = bits_writer(argv[2]);
 	if (!bits)
 		return 1;
+	put_bit(bits, mode);
 	put_vli(bits, length);
 	for (int i = 0; i < 3; ++i)
 		put_vli(bits, quant[i]);

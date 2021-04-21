@@ -26,7 +26,6 @@ void doit(struct image *output, float *input, int *quant)
 	blah(output->buffer + 0, input + 0, N, quant[0]);
 	blah(output->buffer + 1, input + 1, N, quant[1]);
 	blah(output->buffer + 2, input + 2, N, quant[2]);
-	rgb_image(output);
 }
 
 int main(int argc, char **argv)
@@ -38,6 +37,7 @@ int main(int argc, char **argv)
 	struct bits *bits = bits_reader(argv[1]);
 	if (!bits)
 		return 1;
+	int mode = get_bit(bits);
 	int length = get_vli(bits);
 	int pixels = 3 * length * length;
 	int quant[3];
@@ -59,6 +59,8 @@ int main(int argc, char **argv)
 	close_reader(bits);
 	struct image *output = new_image(argv[2], length, length);
 	doit(output, input, quant);
+	if (mode)
+		rgb_image(output);
 	if (!write_ppm(output))
 		return 1;
 	return 0;
