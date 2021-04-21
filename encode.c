@@ -8,6 +8,7 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include "ppm.h"
 #include "vli.h"
 #include "bits.h"
+#include "hilbert.h"
 
 void doit(float *output, float *input, int length, int quant)
 {
@@ -53,13 +54,13 @@ int main(int argc, char **argv)
 		put_vli(bits, quant[i]);
 	for (int j = 0; j < 3; ++j) {
 		for (int i = 0; i < pixels; ++i) {
-			if (output[j+3*i]) {
-				put_vli(bits, fabsf(output[j+3*i]));
-				put_bit(bits, output[j+3*i] < 0.f);
+			if (output[j+3*hilbert(length, i)]) {
+				put_vli(bits, fabsf(output[j+3*hilbert(length, i)]));
+				put_bit(bits, output[j+3*hilbert(length, i)] < 0.f);
 			} else {
 				put_vli(bits, 0);
 				int k = i + 1;
-				while (k < pixels && !output[j+3*k])
+				while (k < pixels && !output[j+3*hilbert(length, k)])
 					++k;
 				--k;
 				put_vli(bits, k - i);

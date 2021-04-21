@@ -8,6 +8,7 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include "ppm.h"
 #include "vli.h"
 #include "bits.h"
+#include "hilbert.h"
 
 void doit(float *output, float *input, int length, int quant)
 {
@@ -41,9 +42,9 @@ int main(int argc, char **argv)
 			} else {
 				int cnt = get_vli(bits);
 				for (int k = 0; k < cnt; ++k)
-					input[j+3*i++] = 0;
+					input[j+3*hilbert(length, i++)] = 0;
 			}
-			input[j+3*i] = val;
+			input[j+3*hilbert(length, i)] = val;
 		}
 	}
 	close_reader(bits);
