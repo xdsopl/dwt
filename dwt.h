@@ -32,3 +32,23 @@ void ihaar(float *out, float *in, int N, int S)
 	}
 }
 
+void haar2(float *out, float *in, int N, int S)
+{
+	for (int i = 0; i < N; i++)
+		haar(out + S * N * i, in + S * N * i, N, S);
+	for (int i = 0; i < N * N; i++)
+		in[i * S] = out[i * S];
+	for (int i = 0; i < N; i++)
+		haar(out + S * i, in + S * i, N, S * N);
+}
+
+void ihaar2(float *out, float *in, int N, int S)
+{
+	for (int i = 0; i < N; i++)
+		ihaar(out + S * i, in + S * i, N, S * N);
+	for (int i = 0; i < N * N; i++)
+		in[i * S] = out[i * S];
+	for (int i = 0; i < N; i++)
+		ihaar(out + S * N * i, in + S * N * i, N, S);
+}
+

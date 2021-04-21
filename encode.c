@@ -12,12 +12,9 @@ You should have received a copy of the CC0 Public Domain Dedication along with t
 
 void blah(float *output, float *input, int N, int Q)
 {
-	for (int i = 0; i < N; i++)
-		haar(output + 3 * N * i, input + 3 * N * i, N, 3);
-	for (int i = 0; i < N; i++)
-		haar(input + 3 * i, output + 3 * i, N, 3 * N);
+	haar2(output, input, N, 3);
 	for (int i = 0; i < N * N; i++)
-		output[i * 3] = nearbyintf(Q * input[i * 3]);
+		output[i * 3] = nearbyintf(Q * output[i * 3]);
 }
 
 void doit(float *output, struct image *input, int *quant)

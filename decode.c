@@ -13,11 +13,8 @@ You should have received a copy of the CC0 Public Domain Dedication along with t
 void blah(float *output, float *input, int N, int Q)
 {
 	for (int i = 0; i < N * N; i++)
-		output[i * 3] = input[i * 3] / Q;
-	for (int i = 0; i < N; i++)
-		ihaar(input + 3 * i, output + 3 * i, N, 3 * N);
-	for (int i = 0; i < N; i++)
-		ihaar(output + 3 * N * i, input + 3 * N * i, N, 3);
+		input[i * 3] /= Q;
+	ihaar2(output, input, N, 3);
 }
 
 void doit(struct image *output, float *input, int *quant)
