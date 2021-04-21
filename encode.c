@@ -43,23 +43,25 @@ int main(int argc, char **argv)
 	struct image *input = read_ppm(argv[1]);
 	if (!input || input->width != input->height || !pow2(input->width))
 		return 1;
-	float *output = malloc(sizeof(float) * 3 * input->total);
-	int head[4] = { input->width, 128, 32, 32 };
-	doit(output, input, head+1);
+	int length = input->width;
+	int pixels = 3 * length * length;
+	int quant[3] = { 128, 32, 32 };
+	float *output = malloc(sizeof(float) * pixels);
+	doit(output, input, quant);
 	struct bits *bits = bits_writer(argv[2]);
 	if (!bits)
 		return 1;
-	for (int i = 0; i < 4; ++i)
-		put_vli(bits, head[i]);
-	int N = 3 * input->total;
-	for (int i = 0; i < N; i++) {
+	put_vli(bits, length);
+	for (int i = 0; i < 3; ++i)
+		put_vli(bits, quant[i]);
+	for (int i = 0; i < pixels; i++) {
 		if (output[i]) {
 			put_vli(bits, fabsf(output[i]));
 			put_bit(bits, output[i] < 0.f);
 		} else {
 			put_vli(bits, 0);
 			int k = i + 1;
-			while (k < N && !output[k])
+			while (k < pixels && !output[k])
 				++k;
 			--k;
 			put_vli(bits, k - i);

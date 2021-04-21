@@ -38,12 +38,13 @@ int main(int argc, char **argv)
 	struct bits *bits = bits_reader(argv[1]);
 	if (!bits)
 		return 1;
-	int head[4];
-	for (int i = 0; i < 4; ++i)
-		head[i] = get_vli(bits);
-	float *input = malloc(sizeof(float) * 3 * head[0] * head[0]);
-	int N = 3 * head[0] * head[0];
-	for (int i = 0; i < N; i++) {
+	int length = get_vli(bits);
+	int pixels = 3 * length * length;
+	int quant[3];
+	for (int i = 0; i < 3; ++i)
+		quant[i] = get_vli(bits);
+	float *input = malloc(sizeof(float) * pixels);
+	for (int i = 0; i < pixels; i++) {
 		float val = get_vli(bits);
 		if (val) {
 			if (get_bit(bits))
@@ -56,8 +57,8 @@ int main(int argc, char **argv)
 		input[i] = val;
 	}
 	close_reader(bits);
-	struct image *output = new_image(argv[2], head[0], head[0]);
-	doit(output, input, head+1);
+	struct image *output = new_image(argv[2], length, length);
+	doit(output, input, quant);
 	if (!write_ppm(output))
 		return 1;
 	return 0;
