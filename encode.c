@@ -9,19 +9,11 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include "vli.h"
 #include "bits.h"
 
-void blah(float *output, float *input, int N, int Q)
+void doit(float *output, float *input, int length, int quant)
 {
-	haar2(output, input, N, 3);
-	for (int i = 0; i < N * N; i++)
-		output[i * 3] = nearbyintf(Q * output[i * 3]);
-}
-
-void doit(float *output, struct image *input, int *quant)
-{
-	int N = input->width;
-	blah(output + 0, input->buffer + 0, N, quant[0]);
-	blah(output + 1, input->buffer + 1, N, quant[1]);
-	blah(output + 2, input->buffer + 2, N, quant[2]);
+	haar2(output, input, length, 3);
+	for (int i = 0; i < length * length; ++i)
+		output[i*3] = nearbyintf(quant * output[i*3]);
 }
 
 int pow2(int N)
@@ -50,7 +42,8 @@ int main(int argc, char **argv)
 	float *output = malloc(sizeof(float) * 3 * pixels);
 	if (mode)
 		ycbcr_image(input);
-	doit(output, input, quant);
+	for (int i = 0; i < 3; ++i)
+		doit(output+i, input->buffer+i, length, quant[i]);
 	struct bits *bits = bits_writer(argv[2]);
 	if (!bits)
 		return 1;

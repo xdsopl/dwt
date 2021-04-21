@@ -9,19 +9,11 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include "vli.h"
 #include "bits.h"
 
-void blah(float *output, float *input, int N, int Q)
+void doit(float *output, float *input, int length, int quant)
 {
-	for (int i = 0; i < N * N; i++)
-		input[i * 3] /= Q;
-	ihaar2(output, input, N, 3);
-}
-
-void doit(struct image *output, float *input, int *quant)
-{
-	int N = output->width;
-	blah(output->buffer + 0, input + 0, N, quant[0]);
-	blah(output->buffer + 1, input + 1, N, quant[1]);
-	blah(output->buffer + 2, input + 2, N, quant[2]);
+	for (int i = 0; i < length * length; ++i)
+		input[i*3] /= quant;
+	ihaar2(output, input, length, 3);
 }
 
 int main(int argc, char **argv)
@@ -56,7 +48,8 @@ int main(int argc, char **argv)
 	}
 	close_reader(bits);
 	struct image *output = new_image(argv[2], length, length);
-	doit(output, input, quant);
+	for (int i = 0; i < 3; ++i)
+		doit(output->buffer+i, input+i, length, quant[i]);
 	if (mode)
 		rgb_image(output);
 	if (!write_ppm(output))
