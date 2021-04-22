@@ -14,7 +14,7 @@ void doit(float *output, float *input, int length, int quant)
 {
 	for (int i = 0; i < length * length; ++i)
 		input[i*3] /= quant;
-	ihaar2(output, input, length, 3);
+	ihaar2d(output, input, length, 3);
 }
 
 int main(int argc, char **argv)

@@ -12,7 +12,7 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 
 void doit(float *output, float *input, int length, int quant)
 {
-	haar2(output, input, length, 3);
+	haar2d(output, input, length, 3);
 	for (int i = 0; i < length * length; ++i)
 		output[i*3] = nearbyintf(quant * output[i*3]);
 }
