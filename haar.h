@@ -15,7 +15,7 @@ void haar(float *out, float *in, int N, int S)
 			out[(0 + i) * S] = (in[(i * 2 + 0) * S] + in[(i * 2 + 1) * S]) / sqrtf(2.0f);
 			out[(l + i) * S] = (in[(i * 2 + 0) * S] - in[(i * 2 + 1) * S]) / sqrtf(2.0f);
 		}
-		for (int i = 0; i < 2 * l; i++)
+		for (int i = 0; i < l; i++)
 			in[i * S] = out[i * S];
 	}
 }
