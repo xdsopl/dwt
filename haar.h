@@ -90,3 +90,47 @@ void ihaar2d(float *out, float *in, int N, int S)
 	}
 }
 
+void haar3(float *out, float *in, int N, int S)
+{
+	for (int l = N / 2; l > 0; l /= 2) {
+		for (int j = 0; j < 2 * l; j++) {
+			for (int i = 0; i < l; i++) {
+				out[(N*j+0+i)*S] = (in[(N*j+i*2+0)*S] + in[(N*j+i*2+1)*S]) / sqrtf(2.f);
+				out[(N*j+l+i)*S] = (in[(N*j+i*2+0)*S] - in[(N*j+i*2+1)*S]) / sqrtf(2.f);
+			}
+			for (int i = 0; i < 2 * l; i++)
+				in[(N*j+i)*S] = out[(N*j+i)*S];
+		}
+		for (int j = 0; j < 2 * l; j++) {
+			for (int i = 0; i < l; i++) {
+				out[(j+N*(0+i))*S] = (in[(j+N*(i*2+0))*S] + in[(j+N*(i*2+1))*S]) / sqrtf(2.f);
+				out[(j+N*(l+i))*S] = (in[(j+N*(i*2+0))*S] - in[(j+N*(i*2+1))*S]) / sqrtf(2.f);
+			}
+			for (int i = 0; i < l; i++)
+				in[(j+N*i)*S] = out[(j+N*i)*S];
+		}
+	}
+}
+
+void ihaar3(float *out, float *in, int N, int S)
+{
+	for (int l = 1; l < N; l *= 2) {
+		for (int j = 0; j < 2 * l; j++) {
+			for (int i = 0; i < l; i++) {
+				out[(j+N*(i*2+0))*S] = (in[(j+N*(0+i))*S] + in[(j+N*(l+i))*S]) / sqrtf(2.f);
+				out[(j+N*(i*2+1))*S] = (in[(j+N*(0+i))*S] - in[(j+N*(l+i))*S]) / sqrtf(2.f);
+			}
+			for (int i = 0; i < 2 * l; i++)
+				in[(j+N*i)*S] = out[(j+N*i)*S];
+		}
+		for (int j = 0; j < 2 * l; j++) {
+			for (int i = 0; i < l; i++) {
+				out[(N*j+i*2+0)*S] = (in[(N*j+0+i)*S] + in[(N*j+l+i)*S]) / sqrtf(2.f);
+				out[(N*j+i*2+1)*S] = (in[(N*j+0+i)*S] - in[(N*j+l+i)*S]) / sqrtf(2.f);
+			}
+			for (int i = 0; i < 2 * l; i++)
+				in[(N*j+i)*S] = out[(N*j+i)*S];
+		}
+	}
+}
+
