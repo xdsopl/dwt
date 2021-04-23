@@ -34,6 +34,8 @@ int main(int argc, char **argv)
 		quant[i] = get_vli(bits);
 	float *input = malloc(sizeof(float) * 3 * pixels);
 	for (int j = 0; j < 3; ++j) {
+		if (!quant[j])
+			continue;
 		for (int i = 0; i < pixels; ++i) {
 			float val = get_vli(bits);
 			if (val) {
@@ -50,7 +52,11 @@ int main(int argc, char **argv)
 	close_reader(bits);
 	struct image *output = new_image(argv[2], length, length);
 	for (int i = 0; i < 3; ++i)
-		doit(output->buffer+i, input+i, length, quant[i]);
+		if (quant[i])
+			doit(output->buffer+i, input+i, length, quant[i]);
+		else
+			for (int j = 0; j < pixels; ++j)
+				output->buffer[3*j+i] = 0;
 	if (mode)
 		rgb_image(output);
 	if (!write_ppm(output))

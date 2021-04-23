@@ -44,7 +44,8 @@ int main(int argc, char **argv)
 	if (mode)
 		ycbcr_image(input);
 	for (int i = 0; i < 3; ++i)
-		doit(output+i, input->buffer+i, length, quant[i]);
+		if (quant[i])
+			doit(output+i, input->buffer+i, length, quant[i]);
 	struct bits *bits = bits_writer(argv[2]);
 	if (!bits)
 		return 1;
@@ -53,6 +54,8 @@ int main(int argc, char **argv)
 	for (int i = 0; i < 3; ++i)
 		put_vli(bits, quant[i]);
 	for (int j = 0; j < 3; ++j) {
+		if (!quant[j])
+			continue;
 		for (int i = 0; i < pixels; ++i) {
 			if (output[j+3*hilbert(length, i)]) {
 				put_vli(bits, fabsf(output[j+3*hilbert(length, i)]));
