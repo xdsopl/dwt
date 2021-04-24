@@ -5,6 +5,7 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 */
 
 #include "haar.h"
+#include "dwt.h"
 #include "ppm.h"
 #include "vli.h"
 #include "bits.h"
@@ -15,6 +16,8 @@ void doit(float *output, float *input, int length, int quant)
 	for (int i = 0; i < length * length; ++i)
 		input[i*3] /= quant;
 	ihaar2d(output, input, length, 3);
+	//idwt2d(ihaar, output, input, length, 3);
+	//idwt2(ihaar, output, input, length, 3);
 }
 
 int main(int argc, char **argv)

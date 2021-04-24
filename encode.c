@@ -5,6 +5,7 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 */
 
 #include "haar.h"
+#include "dwt.h"
 #include "ppm.h"
 #include "vli.h"
 #include "bits.h"
@@ -13,6 +14,8 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 void doit(float *output, float *input, int length, int quant)
 {
 	haar2d(output, input, length, 3);
+	//dwt2d(haar, output, input, length, 3);
+	//dwt2(haar, output, input, length, 3);
 	for (int i = 0; i < length * length; ++i)
 		output[i*3] = nearbyintf(quant * output[i*3]);
 }

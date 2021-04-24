@@ -1,5 +1,5 @@
 /*
-Discrete wavelet transform using the Haar wavelet
+Haar wavelet
 
 Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 */
@@ -8,7 +8,7 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 
 #include <math.h>
 
-void haar1(float *out, float *in, int N, int S)
+void haar(float *out, float *in, int N, int S)
 {
 	for (int i = 0; i < N; i += 2) {
 		out[(i+0)/2*S] = (in[(i+0)*S] + in[(i+1)*S]) / sqrtf(2.f);
@@ -16,50 +16,12 @@ void haar1(float *out, float *in, int N, int S)
 	}
 }
 
-void ihaar1(float *out, float *in, int N, int S)
+void ihaar(float *out, float *in, int N, int S)
 {
 	for (int i = 0; i < N; i += 2) {
 		out[(i+0)*S] = (in[(i+0)/2*S] + in[(i+N)/2*S]) / sqrtf(2.f);
 		out[(i+1)*S] = (in[(i+0)/2*S] - in[(i+N)/2*S]) / sqrtf(2.f);
 	}
-}
-
-void haar(float *out, float *in, int N, int S)
-{
-	for (int l = N; l >= 2; l /= 2) {
-		haar1(out, in, l, S);
-		for (int i = 0; i < l / 2; ++i)
-			in[i*S] = out[i*S];
-	}
-}
-
-void ihaar(float *out, float *in, int N, int S)
-{
-	for (int l = 2; l <= N; l *= 2) {
-		ihaar1(out, in, l, S);
-		for (int i = 0; i < l; ++i)
-			in[i*S] = out[i*S];
-	}
-}
-
-void haar2(float *out, float *in, int N, int S)
-{
-	for (int i = 0; i < N; ++i)
-		haar(out+S*N*i, in+S*N*i, N, S);
-	for (int i = 0; i < N * N; ++i)
-		in[i*S] = out[i*S];
-	for (int i = 0; i < N; ++i)
-		haar(out+S*i, in+S*i, N, S*N);
-}
-
-void ihaar2(float *out, float *in, int N, int S)
-{
-	for (int i = 0; i < N; ++i)
-		ihaar(out+S*i, in+S*i, N, S*N);
-	for (int i = 0; i < N * N; ++i)
-		in[i*S] = out[i*S];
-	for (int i = 0; i < N; ++i)
-		ihaar(out+S*N*i, in+S*N*i, N, S);
 }
 
 void haar2d(float *out, float *in, int N, int S)
@@ -97,38 +59,6 @@ void ihaar2d(float *out, float *in, int N, int S)
 		for (int j = 0; j < 2 * l; ++j)
 			for (int i = 0; i < 2 * l; ++i)
 				in[(N*j+i)*S] = out[(N*j+i)*S];
-	}
-}
-
-void haar3(float *out, float *in, int N, int S)
-{
-	for (int l = N; l >= 2; l /= 2) {
-		for (int j = 0; j < l; ++j) {
-			haar1(out+S*N*j, in+S*N*j, l, S);
-			for (int i = 0; i < l; ++i)
-				in[(N*j+i)*S] = out[(N*j+i)*S];
-		}
-		for (int j = 0; j < l; ++j) {
-			haar1(out+S*j, in+S*j, l, S*N);
-			for (int i = 0; i < l / 2; ++i)
-				in[(j+N*i)*S] = out[(j+N*i)*S];
-		}
-	}
-}
-
-void ihaar3(float *out, float *in, int N, int S)
-{
-	for (int l = 2; l <= N; l *= 2) {
-		for (int j = 0; j < l; ++j) {
-			ihaar1(out+S*j, in+S*j, l, S*N);
-			for (int i = 0; i < l; ++i)
-				in[(j+N*i)*S] = out[(j+N*i)*S];
-		}
-		for (int j = 0; j < l; ++j) {
-			ihaar1(out+S*N*j, in+S*N*j, l, S);
-			for (int i = 0; i < l; ++i)
-				in[(N*j+i)*S] = out[(N*j+i)*S];
-		}
 	}
 }
 
