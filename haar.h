@@ -8,26 +8,36 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 
 #include <math.h>
 
+void haar1(float *out, float *in, int N, int S)
+{
+	for (int i = 0; i < N; i += 2) {
+		out[(i+0)/2*S] = (in[(i+0)*S] + in[(i+1)*S]) / sqrtf(2.f);
+		out[(i+N)/2*S] = (in[(i+0)*S] - in[(i+1)*S]) / sqrtf(2.f);
+	}
+}
+
+void ihaar1(float *out, float *in, int N, int S)
+{
+	for (int i = 0; i < N; i += 2) {
+		out[(i+0)*S] = (in[(i+0)/2*S] + in[(i+N)/2*S]) / sqrtf(2.f);
+		out[(i+1)*S] = (in[(i+0)/2*S] - in[(i+N)/2*S]) / sqrtf(2.f);
+	}
+}
+
 void haar(float *out, float *in, int N, int S)
 {
-	for (int l = N / 2; l > 0; l /= 2) {
-		for (int i = 0; i < l; ++i) {
-			out[(0+i)*S] = (in[(i*2+0)*S] + in[(i*2+1) * S]) / sqrtf(2.f);
-			out[(l+i)*S] = (in[(i*2+0)*S] - in[(i*2+1) * S]) / sqrtf(2.f);
-		}
-		for (int i = 0; i < l; ++i)
+	for (int l = N; l >= 2; l /= 2) {
+		haar1(out, in, l, S);
+		for (int i = 0; i < l / 2; ++i)
 			in[i*S] = out[i*S];
 	}
 }
 
 void ihaar(float *out, float *in, int N, int S)
 {
-	for (int l = 1; l < N; l *= 2) {
-		for (int i = 0; i < l; ++i) {
-			out[(i*2+0)*S] = (in[(i+0)*S] + in[(l+i)*S]) / sqrtf(2.f);
-			out[(i*2+1)*S] = (in[(i+0)*S] - in[(l+i)*S]) / sqrtf(2.f);
-		}
-		for (int i = 0; i < 2 * l; ++i)
+	for (int l = 2; l <= N; l *= 2) {
+		ihaar1(out, in, l, S);
+		for (int i = 0; i < l; ++i)
 			in[i*S] = out[i*S];
 	}
 }
@@ -92,21 +102,15 @@ void ihaar2d(float *out, float *in, int N, int S)
 
 void haar3(float *out, float *in, int N, int S)
 {
-	for (int l = N / 2; l > 0; l /= 2) {
-		for (int j = 0; j < 2 * l; ++j) {
-			for (int i = 0; i < l; ++i) {
-				out[(N*j+0+i)*S] = (in[(N*j+i*2+0)*S] + in[(N*j+i*2+1)*S]) / sqrtf(2.f);
-				out[(N*j+l+i)*S] = (in[(N*j+i*2+0)*S] - in[(N*j+i*2+1)*S]) / sqrtf(2.f);
-			}
-			for (int i = 0; i < 2 * l; ++i)
+	for (int l = N; l >= 2; l /= 2) {
+		for (int j = 0; j < l; ++j) {
+			haar1(out+S*N*j, in+S*N*j, l, S);
+			for (int i = 0; i < l; ++i)
 				in[(N*j+i)*S] = out[(N*j+i)*S];
 		}
-		for (int j = 0; j < 2 * l; ++j) {
-			for (int i = 0; i < l; ++i) {
-				out[(j+N*(0+i))*S] = (in[(j+N*(i*2+0))*S] + in[(j+N*(i*2+1))*S]) / sqrtf(2.f);
-				out[(j+N*(l+i))*S] = (in[(j+N*(i*2+0))*S] - in[(j+N*(i*2+1))*S]) / sqrtf(2.f);
-			}
-			for (int i = 0; i < l; ++i)
+		for (int j = 0; j < l; ++j) {
+			haar1(out+S*j, in+S*j, l, S*N);
+			for (int i = 0; i < l / 2; ++i)
 				in[(j+N*i)*S] = out[(j+N*i)*S];
 		}
 	}
@@ -114,21 +118,15 @@ void haar3(float *out, float *in, int N, int S)
 
 void ihaar3(float *out, float *in, int N, int S)
 {
-	for (int l = 1; l < N; l *= 2) {
-		for (int j = 0; j < 2 * l; ++j) {
-			for (int i = 0; i < l; ++i) {
-				out[(j+N*(i*2+0))*S] = (in[(j+N*(0+i))*S] + in[(j+N*(l+i))*S]) / sqrtf(2.f);
-				out[(j+N*(i*2+1))*S] = (in[(j+N*(0+i))*S] - in[(j+N*(l+i))*S]) / sqrtf(2.f);
-			}
-			for (int i = 0; i < 2 * l; ++i)
+	for (int l = 2; l <= N; l *= 2) {
+		for (int j = 0; j < l; ++j) {
+			ihaar1(out+S*j, in+S*j, l, S*N);
+			for (int i = 0; i < l; ++i)
 				in[(j+N*i)*S] = out[(j+N*i)*S];
 		}
-		for (int j = 0; j < 2 * l; ++j) {
-			for (int i = 0; i < l; ++i) {
-				out[(N*j+i*2+0)*S] = (in[(N*j+0+i)*S] + in[(N*j+l+i)*S]) / sqrtf(2.f);
-				out[(N*j+i*2+1)*S] = (in[(N*j+0+i)*S] - in[(N*j+l+i)*S]) / sqrtf(2.f);
-			}
-			for (int i = 0; i < 2 * l; ++i)
+		for (int j = 0; j < l; ++j) {
+			ihaar1(out+S*N*j, in+S*N*j, l, S);
+			for (int i = 0; i < l; ++i)
 				in[(N*j+i)*S] = out[(N*j+i)*S];
 		}
 	}
