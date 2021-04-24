@@ -5,19 +5,21 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 */
 
 #include "haar.h"
+#include "cdf97.h"
 #include "dwt.h"
 #include "ppm.h"
 #include "vli.h"
 #include "bits.h"
 #include "hilbert.h"
 
-void doit(float *output, float *input, int length, int quant)
+void doit(float *output, float *input, int length, int quant, int wavelet)
 {
 	for (int i = 0; i < length * length; ++i)
 		input[i*3] /= quant;
-	ihaar2d(output, input, length, 3);
-	//idwt2d(ihaar, output, input, length, 3);
-	//idwt2(ihaar, output, input, length, 3);
+	if (wavelet)
+		idwt2d(icdf97, output, input, length, 3);
+	else
+		ihaar2d(output, input, length, 3);
 }
 
 int main(int argc, char **argv)
@@ -30,6 +32,7 @@ int main(int argc, char **argv)
 	if (!bits)
 		return 1;
 	int mode = get_bit(bits);
+	int wavelet = get_bit(bits);
 	int length = get_vli(bits);
 	int pixels = length * length;
 	int quant[3];
@@ -56,7 +59,7 @@ int main(int argc, char **argv)
 	struct image *output = new_image(argv[2], length, length);
 	for (int i = 0; i < 3; ++i)
 		if (quant[i])
-			doit(output->buffer+i, input+i, length, quant[i]);
+			doit(output->buffer+i, input+i, length, quant[i], wavelet);
 		else
 			for (int j = 0; j < pixels; ++j)
 				output->buffer[3*j+i] = 0;
