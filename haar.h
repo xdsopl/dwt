@@ -24,9 +24,9 @@ void ihaar(float *out, float *in, int N, int S)
 	}
 }
 
-void haar2d(float *out, float *in, int N, int S)
+void haar2d(float *out, float *in, int N0, int N, int S)
 {
-	for (int l = N; l >= 2; l /= 2) {
+	for (int l = N; l >= N0; l /= 2) {
 		for (int j = 0; j < l; j += 2) {
 			for (int i = 0; i < l; i += 2) {
 				float a = in[(N*(j+0)+i+0)*S], b = in[(N*(j+0)+i+1)*S];
@@ -43,9 +43,9 @@ void haar2d(float *out, float *in, int N, int S)
 	}
 }
 
-void ihaar2d(float *out, float *in, int N, int S)
+void ihaar2d(float *out, float *in, int N0, int N, int S)
 {
-	for (int l = 2; l <= N; l *= 2) {
+	for (int l = N0; l <= N; l *= 2) {
 		for (int j = 0; j < l; j += 2) {
 			for (int i = 0; i < l; i += 2) {
 				float a = in[(N*(j+0)+i+0)/2*S], b = in[(N*(j+0)+i+l)/2*S];

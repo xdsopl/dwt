@@ -15,9 +15,9 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 void doit(float *output, float *input, int length, int quant, int wavelet)
 {
 	if (wavelet)
-		dwt2d(cdf97, output, input, length, 3);
+		dwt2d(cdf97, output, input, 8, length, 3);
 	else
-		haar2d(output, input, length, 3);
+		haar2d(output, input, 8, length, 3);
 	for (int i = 0; i < length * length; ++i)
 		output[i*3] = nearbyintf(quant * output[i*3]);
 }
@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	struct image *input = read_ppm(argv[1]);
-	if (!input || input->width != input->height || !pow2(input->width))
+	if (!input || input->width != input->height || !pow2(input->width) || input->width < 8)
 		return 1;
 	int mode = 1;
 	if (argc == 7)

@@ -17,9 +17,9 @@ void doit(float *output, float *input, int length, int quant, int wavelet)
 	for (int i = 0; i < length * length; ++i)
 		input[i*3] /= quant;
 	if (wavelet)
-		idwt2d(icdf97, output, input, length, 3);
+		idwt2d(icdf97, output, input, 8, length, 3);
 	else
-		ihaar2d(output, input, length, 3);
+		ihaar2d(output, input, 8, length, 3);
 }
 
 int main(int argc, char **argv)
