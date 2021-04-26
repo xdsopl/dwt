@@ -12,11 +12,25 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include "bits.h"
 #include "hilbert.h"
 
-void doit(float *output, float *input, int length, int lmin, int quant, int qmin, int wavelet)
+void doit(float *output, float *input, int length, int lmin, int quant, int qmin, int wavelet, int truncate)
 {
-	for (int j = 0; j < length; ++j)
-		for (int i = 0; i < length; ++i)
-			input[length*j+i] /= (i < lmin && j < lmin ? qmin : quant);
+	for (int j = 0; j < length; ++j) {
+		for (int i = 0; i < length; ++i) {
+			float v = input[length*j+i];
+			if (truncate) {
+				float bias = 0.375f;
+				if (v < 0.f)
+					v -= bias;
+				else if (v > 0.f)
+					v += bias;
+			}
+			if (i < lmin && j < lmin)
+				v /= qmin;
+			else
+				v /= quant;
+			input[length*j+i] = v;
+		}
+	}
 	if (wavelet)
 		idwt2d(icdf97, output, input, lmin, length, 3, 1);
 	else
@@ -34,6 +48,7 @@ int main(int argc, char **argv)
 		return 1;
 	int mode = get_bit(bits);
 	int wavelet = get_bit(bits);
+	int truncate = get_bit(bits);
 	int length = get_vli(bits);
 	int lmin = get_vli(bits);
 	int pixels = length * length;
@@ -63,7 +78,7 @@ int main(int argc, char **argv)
 			}
 			input[hilbert(length, i)] = val;
 		}
-		doit(output->buffer+j, input, length, lmin, quant[j], qmin[j], wavelet);
+		doit(output->buffer+j, input, length, lmin, quant[j], qmin[j], wavelet, truncate);
 	}
 	close_reader(bits);
 	if (mode)

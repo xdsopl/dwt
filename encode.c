@@ -12,16 +12,26 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include "bits.h"
 #include "hilbert.h"
 
-void doit(float *output, float *input, int length, int lmin, int quant, int qmin, int wavelet)
+void doit(float *output, float *input, int length, int lmin, int quant, int qmin, int wavelet, int truncate)
 {
 	if (wavelet)
 		dwt2d(cdf97, output, input, lmin, length, 1, 3);
 	else
 		haar2d(output, input, lmin, length, 1, 3);
-	for (int j = 0; j < length; ++j)
-		for (int i = 0; i < length; ++i)
-			output[length*j+i] = nearbyintf(output[length*j+i] *
-				(i < lmin && j < lmin ? qmin : quant));
+	for (int j = 0; j < length; ++j) {
+		for (int i = 0; i < length; ++i) {
+			float v = output[length*j+i];
+			if (i < lmin && j < lmin)
+				v *= qmin;
+			else
+				v *= quant;
+			if (truncate)
+				v = truncf(v);
+			else
+				v = nearbyintf(v);
+			output[length*j+i] = v;
+		}
+	}
 }
 
 int pow2(int N)
@@ -31,8 +41,8 @@ int pow2(int N)
 
 int main(int argc, char **argv)
 {
-	if (argc != 3 && argc != 6 && argc != 7 && argc != 8) {
-		fprintf(stderr, "usage: %s input.ppm output.dwt [Q0 Q1 Q2] [MODE] [WAVELET]\n", argv[0]);
+	if (argc != 3 && argc != 6 && argc != 7 && argc != 8 && argc != 9) {
+		fprintf(stderr, "usage: %s input.ppm output.dwt [Q0 Q1 Q2] [MODE] [WAVELET] [TRUNCATE]\n", argv[0]);
 		return 1;
 	}
 	int lmin = 8;
@@ -45,6 +55,9 @@ int main(int argc, char **argv)
 	int wavelet = 1;
 	if (argc == 8)
 		wavelet = atoi(argv[7]);
+	int truncate = 1;
+	if (argc == 9)
+		truncate = atoi(argv[8]);
 	int length = input->width;
 	int pixels = length * length;
 	int quant[3] = { 128, 32, 32 };
@@ -62,6 +75,7 @@ int main(int argc, char **argv)
 		return 1;
 	put_bit(bits, mode);
 	put_bit(bits, wavelet);
+	put_bit(bits, truncate);
 	put_vli(bits, length);
 	put_vli(bits, lmin);
 	for (int i = 0; i < 3; ++i)
@@ -72,7 +86,7 @@ int main(int argc, char **argv)
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j])
 			continue;
-		doit(output, input->buffer+j, length, lmin, quant[j], qmin[j], wavelet);
+		doit(output, input->buffer+j, length, lmin, quant[j], qmin[j], wavelet, truncate);
 		for (int i = 0; i < pixels; ++i) {
 			if (output[hilbert(length, i)]) {
 				put_vli(bits, fabsf(output[hilbert(length, i)]));
