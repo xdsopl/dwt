@@ -12,14 +12,15 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include "bits.h"
 #include "hilbert.h"
 
-void doit(float *output, float *input, int length, int quant, int wavelet)
+void doit(float *output, float *input, int length, int lmin, int quant, int qmin, int wavelet)
 {
-	for (int i = 0; i < length * length; ++i)
-		input[i*3] /= quant;
+	for (int j = 0; j < length; ++j)
+		for (int i = 0; i < length; ++i)
+			input[(length*j+i)*3] /= (i < lmin && j < lmin ? qmin : quant);
 	if (wavelet)
-		idwt2d(icdf97, output, input, 8, length, 3);
+		idwt2d(icdf97, output, input, lmin, length, 3);
 	else
-		ihaar2d(output, input, 8, length, 3);
+		ihaar2d(output, input, lmin, length, 3);
 }
 
 int main(int argc, char **argv)
@@ -34,10 +35,14 @@ int main(int argc, char **argv)
 	int mode = get_bit(bits);
 	int wavelet = get_bit(bits);
 	int length = get_vli(bits);
+	int lmin = get_vli(bits);
 	int pixels = length * length;
 	int quant[3];
 	for (int i = 0; i < 3; ++i)
 		quant[i] = get_vli(bits);
+	int qmin[3];
+	for (int i = 0; i < 3; ++i)
+		qmin[i] = get_vli(bits);
 	float *input = malloc(sizeof(float) * 3 * pixels);
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j])
@@ -59,7 +64,7 @@ int main(int argc, char **argv)
 	struct image *output = new_image(argv[2], length, length);
 	for (int i = 0; i < 3; ++i)
 		if (quant[i])
-			doit(output->buffer+i, input+i, length, quant[i], wavelet);
+			doit(output->buffer+i, input+i, length, lmin, quant[i], qmin[i], wavelet);
 		else
 			for (int j = 0; j < pixels; ++j)
 				output->buffer[3*j+i] = 0;

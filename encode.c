@@ -12,14 +12,16 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include "bits.h"
 #include "hilbert.h"
 
-void doit(float *output, float *input, int length, int quant, int wavelet)
+void doit(float *output, float *input, int length, int lmin, int quant, int qmin, int wavelet)
 {
 	if (wavelet)
-		dwt2d(cdf97, output, input, 8, length, 3);
+		dwt2d(cdf97, output, input, lmin, length, 3);
 	else
-		haar2d(output, input, 8, length, 3);
-	for (int i = 0; i < length * length; ++i)
-		output[i*3] = nearbyintf(quant * output[i*3]);
+		haar2d(output, input, lmin, length, 3);
+	for (int j = 0; j < length; ++j)
+		for (int i = 0; i < length; ++i)
+			output[(length*j+i)*3] = nearbyintf(output[(length*j+i)*3] *
+				(i < lmin && j < lmin ? qmin : quant));
 }
 
 int pow2(int N)
@@ -33,8 +35,9 @@ int main(int argc, char **argv)
 		fprintf(stderr, "usage: %s input.ppm output.dwt [Q0 Q1 Q2] [MODE] [WAVELET]\n", argv[0]);
 		return 1;
 	}
+	int lmin = 8;
 	struct image *input = read_ppm(argv[1]);
-	if (!input || input->width != input->height || !pow2(input->width) || input->width < 8)
+	if (!input || input->width != input->height || !pow2(input->width) || input->width < lmin)
 		return 1;
 	int mode = 1;
 	if (argc == 7)
@@ -48,20 +51,26 @@ int main(int argc, char **argv)
 	if (argc >= 6)
 		for (int i = 0; i < 3; ++i)
 			quant[i] = atoi(argv[3+i]);
+	int qmin[3];
+	for (int i = 0; i < 3; ++i)
+		qmin[i] = 2 * quant[i];
 	float *output = malloc(sizeof(float) * 3 * pixels);
 	if (mode)
 		ycbcr_image(input);
 	for (int i = 0; i < 3; ++i)
 		if (quant[i])
-			doit(output+i, input->buffer+i, length, quant[i], wavelet);
+			doit(output+i, input->buffer+i, length, lmin, quant[i], qmin[i], wavelet);
 	struct bits *bits = bits_writer(argv[2]);
 	if (!bits)
 		return 1;
 	put_bit(bits, mode);
 	put_bit(bits, wavelet);
 	put_vli(bits, length);
+	put_vli(bits, lmin);
 	for (int i = 0; i < 3; ++i)
 		put_vli(bits, quant[i]);
+	for (int i = 0; i < 3; ++i)
+		put_vli(bits, qmin[i]);
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j])
 			continue;
