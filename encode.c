@@ -17,20 +17,26 @@ int pow2(int N)
 
 int main(int argc, char **argv)
 {
-	if (argc != 3) {
-		fprintf(stderr, "usage: %s input.ppm output.dwt\n", argv[0]);
+	if (argc != 3 && argc != 4) {
+		fprintf(stderr, "usage: %s input.ppm output.dwt [MODE]\n", argv[0]);
 		return 1;
 	}
+	int mode = 1;
+	if (argc == 4)
+		mode = atoi(argv[3]);
 	int lmin = 8;
 	struct image *input = read_ppm(argv[1]);
 	if (!input || input->width != input->height || !pow2(input->width) || input->width < lmin)
 		return 1;
 	int length = input->width;
 	int pixels = length * length;
+	if (mode)
+		rct_image(input);
 	int *output = malloc(sizeof(int) * pixels);
 	struct bits *bits = bits_writer(argv[2]);
 	if (!bits)
 		return 1;
+	put_bit(bits, mode);
 	put_vli(bits, length);
 	put_vli(bits, lmin);
 	int zeros = 0;

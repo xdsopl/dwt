@@ -19,6 +19,7 @@ int main(int argc, char **argv)
 	struct bits *bits = bits_reader(argv[1]);
 	if (!bits)
 		return 1;
+	int mode = get_bit(bits);
 	int length = get_vli(bits);
 	int lmin = get_vli(bits);
 	int pixels = length * length;
@@ -40,6 +41,8 @@ int main(int argc, char **argv)
 		ihaar2d(output->buffer+j, input, lmin, length, 3, 1);
 	}
 	close_reader(bits);
+	if (mode)
+		rgb_image(output);
 	if (!write_ppm(output))
 		return 1;
 	return 0;
