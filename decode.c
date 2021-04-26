@@ -16,11 +16,11 @@ void doit(float *output, float *input, int length, int lmin, int quant, int qmin
 {
 	for (int j = 0; j < length; ++j)
 		for (int i = 0; i < length; ++i)
-			input[(length*j+i)*3] /= (i < lmin && j < lmin ? qmin : quant);
+			input[length*j+i] /= (i < lmin && j < lmin ? qmin : quant);
 	if (wavelet)
-		idwt2d(icdf97, output, input, lmin, length, 3);
+		idwt2d(icdf97, output, input, lmin, length, 3, 1);
 	else
-		ihaar2d(output, input, lmin, length, 3);
+		ihaar2d(output, input, lmin, length, 3, 1);
 }
 
 int main(int argc, char **argv)
@@ -43,10 +43,14 @@ int main(int argc, char **argv)
 	int qmin[3];
 	for (int i = 0; i < 3; ++i)
 		qmin[i] = get_vli(bits);
-	float *input = malloc(sizeof(float) * 3 * pixels);
+	float *input = malloc(sizeof(float) * pixels);
+	struct image *output = new_image(argv[2], length, length);
 	for (int j = 0; j < 3; ++j) {
-		if (!quant[j])
+		if (!quant[j]) {
+			for (int i = 0; i < pixels; ++i)
+				output->buffer[3*i+j] = 0;
 			continue;
+		}
 		for (int i = 0; i < pixels; ++i) {
 			float val = get_vli(bits);
 			if (val) {
@@ -55,19 +59,13 @@ int main(int argc, char **argv)
 			} else {
 				int cnt = get_vli(bits);
 				for (int k = 0; k < cnt; ++k)
-					input[j+3*hilbert(length, i++)] = 0;
+					input[hilbert(length, i++)] = 0;
 			}
-			input[j+3*hilbert(length, i)] = val;
+			input[hilbert(length, i)] = val;
 		}
+		doit(output->buffer+j, input, length, lmin, quant[j], qmin[j], wavelet);
 	}
 	close_reader(bits);
-	struct image *output = new_image(argv[2], length, length);
-	for (int i = 0; i < 3; ++i)
-		if (quant[i])
-			doit(output->buffer+i, input+i, length, lmin, quant[i], qmin[i], wavelet);
-		else
-			for (int j = 0; j < pixels; ++j)
-				output->buffer[3*j+i] = 0;
 	if (mode)
 		rgb_image(output);
 	if (!write_ppm(output))

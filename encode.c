@@ -15,12 +15,12 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 void doit(float *output, float *input, int length, int lmin, int quant, int qmin, int wavelet)
 {
 	if (wavelet)
-		dwt2d(cdf97, output, input, lmin, length, 3);
+		dwt2d(cdf97, output, input, lmin, length, 1, 3);
 	else
-		haar2d(output, input, lmin, length, 3);
+		haar2d(output, input, lmin, length, 1, 3);
 	for (int j = 0; j < length; ++j)
 		for (int i = 0; i < length; ++i)
-			output[(length*j+i)*3] = nearbyintf(output[(length*j+i)*3] *
+			output[length*j+i] = nearbyintf(output[length*j+i] *
 				(i < lmin && j < lmin ? qmin : quant));
 }
 
@@ -54,12 +54,9 @@ int main(int argc, char **argv)
 	int qmin[3];
 	for (int i = 0; i < 3; ++i)
 		qmin[i] = 2 * quant[i];
-	float *output = malloc(sizeof(float) * 3 * pixels);
+	float *output = malloc(sizeof(float) * pixels);
 	if (mode)
 		ycbcr_image(input);
-	for (int i = 0; i < 3; ++i)
-		if (quant[i])
-			doit(output+i, input->buffer+i, length, lmin, quant[i], qmin[i], wavelet);
 	struct bits *bits = bits_writer(argv[2]);
 	if (!bits)
 		return 1;
@@ -74,14 +71,15 @@ int main(int argc, char **argv)
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j])
 			continue;
+		doit(output, input->buffer+j, length, lmin, quant[j], qmin[j], wavelet);
 		for (int i = 0; i < pixels; ++i) {
-			if (output[j+3*hilbert(length, i)]) {
-				put_vli(bits, fabsf(output[j+3*hilbert(length, i)]));
-				put_bit(bits, output[j+3*hilbert(length, i)] < 0.f);
+			if (output[hilbert(length, i)]) {
+				put_vli(bits, fabsf(output[hilbert(length, i)]));
+				put_bit(bits, output[hilbert(length, i)] < 0.f);
 			} else {
 				put_vli(bits, 0);
 				int k = i + 1;
-				while (k < pixels && !output[j+3*hilbert(length, k)])
+				while (k < pixels && !output[hilbert(length, k)])
 					++k;
 				--k;
 				put_vli(bits, k - i);

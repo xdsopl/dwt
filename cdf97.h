@@ -10,7 +10,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 #pragma once
 
-void cdf97(float *out, float *in, int N, int S)
+void cdf97(float *out, float *in, int N, int SO, int SI)
 {
 	float	a = -1.586134342f,
 		b = -0.05298011854f,
@@ -19,28 +19,28 @@ void cdf97(float *out, float *in, int N, int S)
 		e = 1.149604398f;
 
 	for (int i = 0; i < N-2; i += 2)
-		in[(i+1)*S] += a * (in[(i+0)*S] + in[(i+2)*S]);
-	in[(N-1)*S] += a * (2.f * in[(N-2)*S]);
+		in[(i+1)*SI] += a * (in[(i+0)*SI] + in[(i+2)*SI]);
+	in[(N-1)*SI] += a * (2.f * in[(N-2)*SI]);
 
-	in[0] += b * (2.f * in[S]);
+	in[0] += b * (2.f * in[SI]);
 	for (int i = 2; i < N; i += 2)
-		in[(i+0)*S] += b * (in[(i+1)*S] + in[(i-1)*S]);
+		in[(i+0)*SI] += b * (in[(i+1)*SI] + in[(i-1)*SI]);
 
 	for (int i = 0; i < N-2; i += 2)
-		in[(i+1)*S] += c * (in[(i+0)*S] + in[(i+2)*S]);
-	in[(N-1)*S] += c * (2.f * in[(N-2)*S]);
+		in[(i+1)*SI] += c * (in[(i+0)*SI] + in[(i+2)*SI]);
+	in[(N-1)*SI] += c * (2.f * in[(N-2)*SI]);
 
-	in[0] += d * (2.f * in[S]);
+	in[0] += d * (2.f * in[SI]);
 	for (int i = 2; i < N; i += 2)
-		in[(i+0)*S] += d * (in[(i+1)*S] + in[(i-1)*S]);
+		in[(i+0)*SI] += d * (in[(i+1)*SI] + in[(i-1)*SI]);
 
 	for (int i = 0; i < N; i += 2) {
-		out[(i+0)/2*S] = in[(i+0)*S] * e;
-		out[(i+N)/2*S] = in[(i+1)*S] / e;
+		out[(i+0)/2*SO] = in[(i+0)*SI] * e;
+		out[(i+N)/2*SO] = in[(i+1)*SI] / e;
 	}
 }
 
-void icdf97(float *out, float *in, int N, int S)
+void icdf97(float *out, float *in, int N, int SO, int SI)
 {
 	float	a = -1.586134342f,
 		b = -0.05298011854f,
@@ -49,23 +49,23 @@ void icdf97(float *out, float *in, int N, int S)
 		e = 1.149604398f;
 
 	for (int i = 0; i < N; i += 2) {
-		out[(i+0)*S] = in[(i+0)/2*S] / e;
-		out[(i+1)*S] = in[(i+N)/2*S] * e;
+		out[(i+0)*SO] = in[(i+0)/2*SI] / e;
+		out[(i+1)*SO] = in[(i+N)/2*SI] * e;
 	}
-	out[0] -= d * (2.f * out[S]);
+	out[0] -= d * (2.f * out[SO]);
 	for (int i = 2; i < N; i += 2)
-		out[(i+0)*S] -= d * (out[(i+1)*S] + out[(i-1)*S]);
+		out[(i+0)*SO] -= d * (out[(i+1)*SO] + out[(i-1)*SO]);
 
 	for (int i = 0; i < N-2; i += 2)
-		out[(i+1)*S] -= c * (out[(i+0)*S] + out[(i+2)*S]);
-	out[(N-1)*S] -= c * (2.f * out[(N-2)*S]);
+		out[(i+1)*SO] -= c * (out[(i+0)*SO] + out[(i+2)*SO]);
+	out[(N-1)*SO] -= c * (2.f * out[(N-2)*SO]);
 
-	out[0] -= b * (2.f * out[S]);
+	out[0] -= b * (2.f * out[SO]);
 	for (int i = 2; i < N; i += 2)
-		out[(i+0)*S] -= b * (out[(i+1)*S] + out[(i-1)*S]);
+		out[(i+0)*SO] -= b * (out[(i+1)*SO] + out[(i-1)*SO]);
 
 	for (int i = 0; i < N-2; i += 2)
-		out[(i+1)*S] -= a * (out[(i+0)*S] + out[(i+2)*S]);
-	out[(N-1)*S] -= a * (2.f * out[(N-2)*S]);
+		out[(i+1)*SO] -= a * (out[(i+0)*SO] + out[(i+2)*SO]);
+	out[(N-1)*SO] -= a * (2.f * out[(N-2)*SO]);
 }
 
