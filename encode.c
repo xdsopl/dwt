@@ -49,15 +49,6 @@ int main(int argc, char **argv)
 	struct image *input = read_ppm(argv[1]);
 	if (!input || input->width != input->height || !pow2(input->width) || input->width < lmin)
 		return 1;
-	int mode = 1;
-	if (argc == 7)
-		mode = atoi(argv[6]);
-	int wavelet = 1;
-	if (argc == 8)
-		wavelet = atoi(argv[7]);
-	int truncate = 1;
-	if (argc == 9)
-		truncate = atoi(argv[8]);
 	int length = input->width;
 	int pixels = length * length;
 	int quant[3] = { 128, 32, 32 };
@@ -67,6 +58,15 @@ int main(int argc, char **argv)
 	int qmin[3];
 	for (int i = 0; i < 3; ++i)
 		qmin[i] = 2 * quant[i];
+	int mode = 1;
+	if (argc >= 7)
+		mode = atoi(argv[6]);
+	int wavelet = 1;
+	if (argc >= 8)
+		wavelet = atoi(argv[7]);
+	int truncate = 1;
+	if (argc >= 9)
+		truncate = atoi(argv[8]);
 	float *output = malloc(sizeof(float) * pixels);
 	if (mode)
 		ycbcr_image(input);
