@@ -83,7 +83,7 @@ int main(int argc, char **argv)
 	put_vli(bits, lmin);
 	for (int i = 0; i < 3; ++i)
 		put_vli(bits, quant[i]);
-	int zeros = 0;
+	int zeros_enc = 0, non_zero = 0;
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j])
 			continue;
@@ -93,6 +93,7 @@ int main(int argc, char **argv)
 			if (output[hilbert(length, i)]) {
 				put_vli(bits, fabsf(output[hilbert(length, i)]));
 				put_bit(bits, output[hilbert(length, i)] < 0.f);
+				++non_zero;
 			} else {
 				int pos0 = ftell(bits->file) * 8 + bits->cnt;
 				put_vli(bits, 0);
@@ -103,11 +104,12 @@ int main(int argc, char **argv)
 				put_vli(bits, k - i);
 				i = k;
 				int pos1 = ftell(bits->file) * 8 + bits->cnt;
-				zeros += pos1 - pos0;
+				zeros_enc += pos1 - pos0;
 			}
 		}
 	}
-	fprintf(stderr, "bits used to encode zeros: %d%%\n", (100 * zeros) / (int)(ftell(bits->file) * 8 + bits->cnt));
+	fprintf(stderr, "amount of non-zero values: %d‰\n", (1000 * non_zero) / (3 * pixels));
+	fprintf(stderr, "bits used to encode zeros: %d%%\n", (100 * zeros_enc) / (int)(ftell(bits->file) * 8 + bits->cnt));
 	close_writer(bits);
 	return 0;
 }
