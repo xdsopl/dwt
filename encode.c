@@ -12,25 +12,20 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include "bits.h"
 #include "hilbert.h"
 
-void doit(float *output, float *input, int length, int lmin, int quant, int qmin, int wavelet, int truncate)
+void doit(float *output, float *input, int length, int lmin, int quant, int wavelet, int truncate)
 {
 	if (wavelet)
 		dwt2d(cdf97, output, input, lmin, length, 1, 3);
 	else
 		haar2d(output, input, lmin, length, 1, 3);
-	for (int j = 0; j < length; ++j) {
-		for (int i = 0; i < length; ++i) {
-			float v = output[length*j+i];
-			if (i < lmin && j < lmin)
-				v *= qmin;
-			else
-				v *= quant;
-			if (truncate)
-				v = truncf(v);
-			else
-				v = nearbyintf(v);
-			output[length*j+i] = v;
-		}
+	for (int i = 0; i < length * length; ++i) {
+		float v = output[i];
+		v *= quant;
+		if (truncate)
+			v = truncf(v);
+		else
+			v = nearbyintf(v);
+		output[i] = v;
 	}
 }
 
@@ -55,9 +50,6 @@ int main(int argc, char **argv)
 	if (argc >= 6)
 		for (int i = 0; i < 3; ++i)
 			quant[i] = atoi(argv[3+i]);
-	int qmin[3];
-	for (int i = 0; i < 3; ++i)
-		qmin[i] = 2 * quant[i];
 	int mode = 1;
 	if (argc >= 7)
 		mode = atoi(argv[6]);
@@ -80,13 +72,11 @@ int main(int argc, char **argv)
 	put_vli(bits, lmin);
 	for (int i = 0; i < 3; ++i)
 		put_vli(bits, quant[i]);
-	for (int i = 0; i < 3; ++i)
-		put_vli(bits, qmin[i]);
 	int zeros = 0;
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j])
 			continue;
-		doit(output, input->buffer+j, length, lmin, quant[j], qmin[j], wavelet, truncate);
+		doit(output, input->buffer+j, length, lmin, quant[j], wavelet, truncate);
 		for (int i = 0; i < pixels; ++i) {
 			if (output[hilbert(length, i)]) {
 				put_vli(bits, fabsf(output[hilbert(length, i)]));

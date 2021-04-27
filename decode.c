@@ -12,24 +12,19 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include "bits.h"
 #include "hilbert.h"
 
-void doit(float *output, float *input, int length, int lmin, int quant, int qmin, int wavelet, int truncate)
+void doit(float *output, float *input, int length, int lmin, int quant, int wavelet, int truncate)
 {
-	for (int j = 0; j < length; ++j) {
-		for (int i = 0; i < length; ++i) {
-			float v = input[length*j+i];
-			if (truncate) {
-				float bias = 0.375f;
-				if (v < 0.f)
-					v -= bias;
-				else if (v > 0.f)
-					v += bias;
-			}
-			if (i < lmin && j < lmin)
-				v /= qmin;
-			else
-				v /= quant;
-			input[length*j+i] = v;
+	for (int i = 0; i < length * length; ++i) {
+		float v = input[i];
+		if (truncate) {
+			float bias = 0.375f;
+			if (v < 0.f)
+				v -= bias;
+			else if (v > 0.f)
+				v += bias;
 		}
+		v /= quant;
+		input[i] = v;
 	}
 	if (wavelet)
 		idwt2d(icdf97, output, input, lmin, length, 3, 1);
@@ -55,9 +50,6 @@ int main(int argc, char **argv)
 	int quant[3];
 	for (int i = 0; i < 3; ++i)
 		quant[i] = get_vli(bits);
-	int qmin[3];
-	for (int i = 0; i < 3; ++i)
-		qmin[i] = get_vli(bits);
 	float *input = malloc(sizeof(float) * pixels);
 	struct image *output = new_image(argv[2], length, length);
 	for (int j = 0; j < 3; ++j) {
@@ -78,7 +70,7 @@ int main(int argc, char **argv)
 			}
 			input[hilbert(length, i)] = val;
 		}
-		doit(output->buffer+j, input, length, lmin, quant[j], qmin[j], wavelet, truncate);
+		doit(output->buffer+j, input, length, lmin, quant[j], wavelet, truncate);
 	}
 	close_reader(bits);
 	if (mode)
