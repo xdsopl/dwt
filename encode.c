@@ -10,9 +10,15 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include "bits.h"
 #include "hilbert.h"
 
-int pow2(int N)
+
+void copy(int *output, int *input, int width, int height, int length, int stride)
 {
-	return !(N & (N - 1));
+	for (int j = 0; j < length; ++j)
+		for (int i = 0; i < length; ++i)
+			if (j < height && i < width)
+				output[length*j+i] = input[(width*j+i)*stride];
+			else
+				output[length*j+i] = 0;
 }
 
 int main(int argc, char **argv)
@@ -24,24 +30,31 @@ int main(int argc, char **argv)
 	int mode = 1;
 	if (argc == 4)
 		mode = atoi(argv[3]);
-	int lmin = 8;
-	struct image *input = read_ppm(argv[1]);
-	if (!input || input->width != input->height || !pow2(input->width) || input->width < lmin)
+	struct image *image = read_ppm(argv[1]);
+	if (!image)
 		return 1;
-	int length = input->width;
+	int width = image->width;
+	int height = image->height;
+	int lmin = 8;
+	int length = lmin;
+	while (length < width || length < height)
+		length *= 2;
 	int pixels = length * length;
 	if (mode)
-		rct_image(input);
+		rct_image(image);
+	int *input = malloc(sizeof(int) * pixels);
 	int *output = malloc(sizeof(int) * pixels);
 	struct bits *bits = bits_writer(argv[2]);
 	if (!bits)
 		return 1;
 	put_bit(bits, mode);
-	put_vli(bits, length);
+	put_vli(bits, width);
+	put_vli(bits, height);
 	put_vli(bits, lmin);
 	int zeros = 0;
 	for (int j = 0; j < 3; ++j) {
-		haar2d(output, input->buffer+j, lmin, length, 1, 3);
+		copy(input, image->buffer+j, width, height, length, 3);
+		haar2d(output, input, lmin, length, 1, 1);
 		for (int i = 0; i < pixels; ++i) {
 			if (output[hilbert(length, i)]) {
 				put_vli(bits, abs(output[hilbert(length, i)]));

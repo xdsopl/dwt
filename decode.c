@@ -10,6 +10,13 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include "bits.h"
 #include "hilbert.h"
 
+void copy(int *output, int *input, int width, int height, int length, int stride)
+{
+	for (int j = 0; j < height; ++j)
+		for (int i = 0; i < width; ++i)
+			output[(width*j+i)*stride] = input[length*j+i];
+}
+
 int main(int argc, char **argv)
 {
 	if (argc != 3) {
@@ -20,11 +27,16 @@ int main(int argc, char **argv)
 	if (!bits)
 		return 1;
 	int mode = get_bit(bits);
-	int length = get_vli(bits);
+	int width = get_vli(bits);
+	int height = get_vli(bits);
 	int lmin = get_vli(bits);
+	int length = lmin;
+	while (length < width || length < height)
+		length *= 2;
 	int pixels = length * length;
 	int *input = malloc(sizeof(int) * pixels);
-	struct image *output = new_image(argv[2], length, length);
+	int *output = malloc(sizeof(int) * pixels);
+	struct image *image = new_image(argv[2], width, height);
 	for (int j = 0; j < 3; ++j) {
 		for (int i = 0; i < pixels; ++i) {
 			int val = get_vli(bits);
@@ -38,12 +50,13 @@ int main(int argc, char **argv)
 			}
 			input[hilbert(length, i)] = val;
 		}
-		ihaar2d(output->buffer+j, input, lmin, length, 3, 1);
+		ihaar2d(output, input, lmin, length, 1, 1);
+		copy(image->buffer+j, output, width, height, length, 3);
 	}
 	close_reader(bits);
 	if (mode)
-		rgb_image(output);
-	if (!write_ppm(output))
+		rgb_image(image);
+	if (!write_ppm(image))
 		return 1;
 	return 0;
 }
