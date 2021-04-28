@@ -18,14 +18,16 @@ void doit(float *output, float *input, int length, int lmin, int quant, int wave
 		dwt2d(cdf97, output, input, lmin, length, 1, 1);
 	else
 		haar2d(output, input, lmin, length, 1, 1);
-	for (int i = 0; i < length * length; ++i) {
-		float v = output[i];
-		v *= quant;
-		if (truncate)
-			v = truncf(v);
-		else
-			v = nearbyintf(v);
-		output[i] = v;
+	for (int j = 0; j < length; ++j) {
+		for (int i = 0; i < length; ++i) {
+			float v = output[length*j+i];
+			v *= quant;
+			if ((i >= lmin/2 || j >= lmin/2) && truncate)
+				v = truncf(v);
+			else
+				v = nearbyintf(v);
+			output[length*j+i] = v;
+		}
 	}
 }
 

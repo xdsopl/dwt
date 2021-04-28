@@ -14,17 +14,19 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 
 void doit(float *output, float *input, int length, int lmin, int quant, int wavelet, int truncate)
 {
-	for (int i = 0; i < length * length; ++i) {
-		float v = input[i];
-		if (truncate) {
-			float bias = 0.375f;
-			if (v < 0.f)
-				v -= bias;
-			else if (v > 0.f)
-				v += bias;
+	for (int j = 0; j < length; ++j) {
+		for (int i = 0; i < length; ++i) {
+			float v = input[length*j+i];
+			if ((i >= lmin/2 || j >= lmin/2) && truncate) {
+				float bias = 0.375f;
+				if (v < 0.f)
+					v -= bias;
+				else if (v > 0.f)
+					v += bias;
+			}
+			v /= quant;
+			input[length*j+i] = v;
 		}
-		v /= quant;
-		input[i] = v;
 	}
 	if (wavelet)
 		idwt2d(icdf97, output, input, lmin, length, 1, 1);
