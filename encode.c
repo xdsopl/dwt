@@ -70,8 +70,14 @@ int main(int argc, char **argv)
 		truncate = atoi(argv[8]);
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);
-	if (mode)
+	if (mode) {
 		ycbcr_image(image);
+		for (int i = 0; i < width * height; ++i)
+			image->buffer[3*i] -= 0.5f;
+	} else {
+		for (int i = 0; i < 3 * width * height; ++i)
+			image->buffer[i] -= 0.5f;
+	}
 	struct bits *bits = bits_writer(argv[2]);
 	if (!bits)
 		return 1;

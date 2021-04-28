@@ -86,8 +86,14 @@ int main(int argc, char **argv)
 		copy(image->buffer+j, output, width, height, length, 3);
 	}
 	close_reader(bits);
-	if (mode)
+	if (mode) {
+		for (int i = 0; i < width * height; ++i)
+			image->buffer[3*i] += 0.5f;
 		rgb_image(image);
+	} else {
+		for (int i = 0; i < 3 * width * height; ++i)
+			image->buffer[i] += 0.5f;
+	}
 	if (!write_ppm(image))
 		return 1;
 	return 0;
