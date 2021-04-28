@@ -52,11 +52,11 @@ void dwt2d(void (*wavelet)(float *, float *, int, int, int), float *out, float *
 			for (int i = 0; i < l; ++i)
 				in[(N*j+i)*SI] = out[(N*j+i)*SO];
 		}
-		for (int j = 0; j < l; ++j) {
+		for (int j = 0; j < l; ++j)
 			wavelet(out+SO*j, in+SI*j, l, SO*N, SI*N);
+		for (int j = 0; j < l / 2; ++j)
 			for (int i = 0; i < l / 2; ++i)
 				in[(j+N*i)*SI] = out[(j+N*i)*SO];
-		}
 	}
 }
 
