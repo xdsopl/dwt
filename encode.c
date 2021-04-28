@@ -12,15 +12,19 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include "bits.h"
 #include "hilbert.h"
 
-void doit(float *output, float *input, int length, int lmin, int quant, int wavelet, int truncate)
+void transformation(float *output, float *input, int length, int lmin, int wavelet)
 {
 	if (wavelet)
 		dwt2d(cdf97, output, input, lmin, length, 1, 1);
 	else
 		haar2d(output, input, lmin, length, 1, 1);
+}
+
+void quantization(int *output, float *input, int length, int lmin, int quant, int truncate)
+{
 	for (int j = 0; j < length; ++j) {
 		for (int i = 0; i < length; ++i) {
-			float v = output[length*j+i];
+			float v = input[length*j+i];
 			v *= quant;
 			if ((i >= lmin/2 || j >= lmin/2) && truncate)
 				v = truncf(v);
@@ -72,6 +76,7 @@ int main(int argc, char **argv)
 		truncate = atoi(argv[8]);
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);
+	int *putput = malloc(sizeof(int) * pixels);
 	if (mode) {
 		ycbcr_image(image);
 		for (int i = 0; i < width * height; ++i)
@@ -96,17 +101,18 @@ int main(int argc, char **argv)
 		if (!quant[j])
 			continue;
 		copy(input, image->buffer+j, width, height, length, 3);
-		doit(output, input, length, lmin, quant[j], wavelet, truncate);
+		transformation(output, input, length, lmin, wavelet);
+		quantization(putput, output, length, lmin, quant[j], truncate);
 		for (int i = 0; i < pixels; ++i) {
-			if (output[hilbert(length, i)]) {
-				put_vli(bits, fabsf(output[hilbert(length, i)]));
-				put_bit(bits, output[hilbert(length, i)] < 0.f);
+			if (putput[hilbert(length, i)]) {
+				put_vli(bits, abs(putput[hilbert(length, i)]));
+				put_bit(bits, putput[hilbert(length, i)] < 0);
 				++non_zero;
 			} else {
 				int pos0 = ftell(bits->file) * 8 + bits->cnt;
 				put_vli(bits, 0);
 				int k = i + 1;
-				while (k < pixels && !output[hilbert(length, k)])
+				while (k < pixels && !putput[hilbert(length, k)])
 					++k;
 				--k;
 				put_vli(bits, k - i);

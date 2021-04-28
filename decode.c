@@ -12,7 +12,15 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include "bits.h"
 #include "hilbert.h"
 
-void doit(float *output, float *input, int length, int lmin, int quant, int wavelet, int truncate)
+void transformation(float *output, float *input, int length, int lmin, int wavelet)
+{
+	if (wavelet)
+		idwt2d(icdf97, output, input, lmin, length, 1, 1);
+	else
+		ihaar2d(output, input, lmin, length, 1, 1);
+}
+
+void quantization(float *output, int *input, int length, int lmin, int quant, int truncate)
 {
 	for (int j = 0; j < length; ++j) {
 		for (int i = 0; i < length; ++i) {
@@ -25,13 +33,9 @@ void doit(float *output, float *input, int length, int lmin, int quant, int wave
 					v += bias;
 			}
 			v /= quant;
-			input[length*j+i] = v;
+			output[length*j+i] = v;
 		}
 	}
-	if (wavelet)
-		idwt2d(icdf97, output, input, lmin, length, 1, 1);
-	else
-		ihaar2d(output, input, lmin, length, 1, 1);
 }
 
 void copy(float *output, float *input, int width, int height, int length, int stride)
@@ -65,6 +69,7 @@ int main(int argc, char **argv)
 	int pixels = length * length;
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);
+	int *putput = malloc(sizeof(int) * pixels);
 	struct image *image = new_image(argv[2], width, height);
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j]) {
@@ -73,18 +78,19 @@ int main(int argc, char **argv)
 			continue;
 		}
 		for (int i = 0; i < pixels; ++i) {
-			float val = get_vli(bits);
+			int val = get_vli(bits);
 			if (val) {
 				if (get_bit(bits))
 					val = -val;
 			} else {
 				int cnt = get_vli(bits);
 				for (int k = 0; k < cnt; ++k)
-					input[hilbert(length, i++)] = 0;
+					putput[hilbert(length, i++)] = 0;
 			}
-			input[hilbert(length, i)] = val;
+			putput[hilbert(length, i)] = val;
 		}
-		doit(output, input, length, lmin, quant[j], wavelet, truncate);
+		quantization(input, putput, length, lmin, quant[j], truncate);
+		transformation(output, input, length, lmin, wavelet);
 		copy(image->buffer+j, output, width, height, length, 3);
 	}
 	close_reader(bits);
