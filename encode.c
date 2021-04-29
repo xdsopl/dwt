@@ -122,11 +122,12 @@ int main(int argc, char **argv)
 			int mask = 1 << plane;
 			int last = 0;
 			for (int i = 0; i < pixels; ++i) {
-				if (putput[hilbert(length, i)] & mask) {
+				int idx = hilbert(length, i);
+				if (putput[idx] & mask) {
 					put_vli(bits, i - last);
 					last = i + 1;
 					if (plane == planes-1)
-						putput[hilbert(length, i)] ^= ~mask;
+						putput[idx] ^= ~mask;
 				}
 			}
 			put_vli(bits, pixels - last);
