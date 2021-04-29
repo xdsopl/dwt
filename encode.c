@@ -110,7 +110,6 @@ int main(int argc, char **argv)
 	put_vli(bits, lmin);
 	for (int i = 0; i < 3; ++i)
 		put_vli(bits, quant[i]);
-	int zeros_enc = 0;
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j])
 			continue;
@@ -121,27 +120,18 @@ int main(int argc, char **argv)
 		put_vli(bits, planes);
 		for (int plane = planes-1; plane >= 0; --plane) {
 			int mask = 1 << plane;
+			int last = 0;
 			for (int i = 0; i < pixels; ++i) {
 				if (putput[hilbert(length, i)] & mask) {
-					put_bit(bits, 1);
+					put_vli(bits, i - last);
+					last = i;
 					if (plane == planes-1)
 						putput[hilbert(length, i)] ^= ~mask;
-				} else {
-					int pos0 = ftell(bits->file) * 8 + bits->cnt;
-					put_bit(bits, 0);
-					int k = i + 1;
-					while (k < pixels && !(putput[hilbert(length, k)] & mask))
-						++k;
-					--k;
-					put_vli(bits, k - i);
-					i = k;
-					int pos1 = ftell(bits->file) * 8 + bits->cnt;
-					zeros_enc += pos1 - pos0;
 				}
 			}
+			put_vli(bits, pixels - last);
 		}
 	}
-	fprintf(stderr, "bits used to encode zeros: %d%%\n", (100 * zeros_enc) / (int)(ftell(bits->file) * 8 + bits->cnt));
 	close_writer(bits);
 	return 0;
 }
