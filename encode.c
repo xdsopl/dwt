@@ -35,14 +35,18 @@ void quantization(int *output, float *input, int length, int lmin, int quant, in
 	}
 }
 
-int count_planes(int *putput, int size)
+int count_planes(int *values, int xoff, int yoff, int len, int length)
 {
 	int neg = -1, pos = 0;
-	for (int i = 0; i < size; ++i)
-		if (putput[i] < 0)
-			neg &= putput[i];
-		else
-			pos |= putput[i];
+	for (int y = 0; y < len; ++y) {
+		for (int x = 0; x < len; ++x) {
+			int idx = length * (yoff + y) + xoff + x;
+			if (values[idx] < 0)
+				neg &= values[idx];
+			else
+				pos |= values[idx];
+		}
+	}
 	int cnt = sizeof(int) * 8 - 1;
 	while (cnt >= 0 && (neg&(1<<cnt)) && !(pos&(1<<cnt)))
 		--cnt;
@@ -90,7 +94,7 @@ int main(int argc, char **argv)
 		truncate = atoi(argv[8]);
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);
-	int *putput = malloc(sizeof(int) * pixels);
+	int *putput = malloc(sizeof(int) * 3 * pixels);
 	if (mode) {
 		ycbcr_image(image);
 		for (int i = 0; i < width * height; ++i)
@@ -113,24 +117,37 @@ int main(int argc, char **argv)
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j])
 			continue;
+		int *values = putput + pixels * j;
 		copy(input, image->buffer+j, width, height, length, 3);
 		transformation(output, input, length, lmin, wavelet);
-		quantization(putput, output, length, lmin, quant[j], truncate);
-		int planes = count_planes(putput, pixels);
-		put_vli(bits, planes);
-		for (int plane = planes-1; plane >= 0; --plane) {
-			int mask = 1 << plane;
-			int last = 0;
-			for (int i = 0; i < pixels; ++i) {
-				int idx = hilbert(length, i);
-				if (putput[idx] & mask) {
-					put_vli(bits, i - last);
-					last = i + 1;
-					if (plane == planes-1)
-						putput[idx] ^= ~mask;
+		quantization(values, output, length, lmin, quant[j], truncate);
+	}
+	for (int len = lmin/2; len <= length/2; len *= 2) {
+		for (int yoff = 0; yoff < len*2; yoff += len) {
+			for (int xoff = (!yoff && len > lmin/2) * len; xoff < len*2; xoff += len) {
+				for (int j = 0; j < 3; ++j) {
+					if (!quant[j])
+						continue;
+					int *values = putput + pixels * j;
+					int planes = count_planes(values, xoff, yoff, len, length);
+					put_vli(bits, planes);
+					for (int plane = planes-1; plane >= 0; --plane) {
+						int mask = 1 << plane;
+						int last = 0;
+						for (int i = 0; i < len*len; ++i) {
+							struct position pos = hilbert(len, i);
+							int idx = length * (yoff + pos.y) + xoff + pos.x;
+							if (values[idx] & mask) {
+								put_vli(bits, i - last);
+								last = i + 1;
+								if (plane == planes-1)
+									values[idx] ^= ~mask;
+							}
+						}
+						put_vli(bits, len*len - last);
+					}
 				}
 			}
-			put_vli(bits, pixels - last);
 		}
 	}
 	close_writer(bits);

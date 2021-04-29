@@ -7,7 +7,12 @@ https://en.wikipedia.org/wiki/Hilbert_curve
 Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 */
 
-int hilbert(int n, int d)
+struct position
+{
+	int x, y;
+};
+
+struct position hilbert(int n, int d)
 {
 	int x = 0, y = 0;
 	for (int s = 1; s < n; s *= 2, d /= 4) {
@@ -25,6 +30,6 @@ int hilbert(int n, int d)
 		x += s * rx;
 		y += s * ry;
 	}
-	return n * y + x;
+	return (struct position){ x, y };
 }
 

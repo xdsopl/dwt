@@ -69,26 +69,46 @@ int main(int argc, char **argv)
 	int pixels = length * length;
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);
-	int *putput = malloc(sizeof(int) * pixels);
+	int *putput = malloc(sizeof(int) * 3 * pixels);
 	struct image *image = new_image(argv[2], width, height);
+	for (int len = lmin/2; len <= length/2; len *= 2) {
+		for (int yoff = 0; yoff < len*2; yoff += len) {
+			for (int xoff = (!yoff && len > lmin/2) * len; xoff < len*2; xoff += len) {
+				for (int j = 0; j < 3; ++j) {
+					if (!quant[j])
+						continue;
+					int *values = putput + pixels * j;
+					for (int y = 0; y < len; ++y)
+						for (int x = 0; x < len; ++x)
+							values[length*(yoff+y)+xoff+x] = 0;
+					int planes = get_vli(bits);
+					for (int plane = planes-1; plane >= 0; --plane) {
+						for (int i = get_vli(bits); i < len*len; i += get_vli(bits) + 1) {
+							struct position pos = hilbert(len, i);
+							int idx = length * (yoff + pos.y) + xoff + pos.x;
+							values[idx] |= 1 << plane;
+						}
+					}
+					for (int y = 0; y < len; ++y) {
+						for (int x = 0; x < len; ++x) {
+							int idx = length * (yoff + y) + xoff + x;
+							int mask = 1 << (planes-1);
+							if (values[idx] & mask)
+								values[idx] ^= ~mask;
+						}
+					}
+				}
+			}
+		}
+	}
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j]) {
 			for (int i = 0; i < pixels; ++i)
 				image->buffer[3*i+j] = 0;
 			continue;
 		}
-		for (int i = 0; i < pixels; ++i)
-			putput[i] = 0;
-		int planes = get_vli(bits);
-		for (int plane = planes-1; plane >= 0; --plane)
-			for (int i = get_vli(bits); i < pixels; i += get_vli(bits) + 1)
-				putput[hilbert(length, i)] |= 1 << plane;
-		for (int i = 0; i < pixels; ++i) {
-			int mask = 1 << (planes-1);
-			if (putput[i] & mask)
-				putput[i] ^= ~mask;
-		}
-		quantization(input, putput, length, lmin, quant[j], truncate);
+		int *values = putput + pixels * j;
+		quantization(input, values, length, lmin, quant[j], truncate);
 		transformation(output, input, length, lmin, wavelet);
 		copy(image->buffer+j, output, width, height, length, 3);
 	}
