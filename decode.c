@@ -77,17 +77,21 @@ int main(int argc, char **argv)
 				image->buffer[3*i+j] = 0;
 			continue;
 		}
-		for (int i = 0; i < pixels; ++i) {
-			int val = get_vli(bits);
-			if (val) {
-				if (get_bit(bits))
-					val = -val;
-			} else {
-				int cnt = get_vli(bits);
-				for (int k = 0; k < cnt; ++k)
-					putput[hilbert(length, i++)] = 0;
+		for (int i = 0; i < pixels; ++i)
+			putput[i] = 0;
+		int planes = get_vli(bits);
+		for (int plane = planes-1; plane >= 0; --plane) {
+			for (int i = 0; i < pixels; ++i) {
+				int bit = get_bit(bits);
+				if (!bit)
+					i += get_vli(bits);
+				putput[hilbert(length, i)] |= bit << plane;
 			}
-			putput[hilbert(length, i)] = val;
+		}
+		for (int i = 0; i < pixels; ++i) {
+			int mask = 1 << (planes-1);
+			if (putput[i] & mask)
+				putput[i] ^= ~mask;
 		}
 		quantization(input, putput, length, lmin, quant[j], truncate);
 		transformation(output, input, length, lmin, wavelet);

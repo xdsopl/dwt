@@ -35,6 +35,20 @@ void quantization(int *output, float *input, int length, int lmin, int quant, in
 	}
 }
 
+int count_planes(int *putput, int size)
+{
+	int neg = -1, pos = 0;
+	for (int i = 0; i < size; ++i)
+		if (putput[i] < 0)
+			neg &= putput[i];
+		else
+			pos |= putput[i];
+	int cnt = sizeof(int) * 8 - 1;
+	while (cnt >= 0 && (neg&(1<<cnt)) && !(pos&(1<<cnt)))
+		--cnt;
+	return cnt + 2;
+}
+
 void copy(float *output, float *input, int width, int height, int length, int stride)
 {
 	for (int j = 0; j < length; ++j)
@@ -96,33 +110,37 @@ int main(int argc, char **argv)
 	put_vli(bits, lmin);
 	for (int i = 0; i < 3; ++i)
 		put_vli(bits, quant[i]);
-	int zeros_enc = 0, non_zero = 0;
+	int zeros_enc = 0;
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j])
 			continue;
 		copy(input, image->buffer+j, width, height, length, 3);
 		transformation(output, input, length, lmin, wavelet);
 		quantization(putput, output, length, lmin, quant[j], truncate);
-		for (int i = 0; i < pixels; ++i) {
-			if (putput[hilbert(length, i)]) {
-				put_vli(bits, abs(putput[hilbert(length, i)]));
-				put_bit(bits, putput[hilbert(length, i)] < 0);
-				++non_zero;
-			} else {
-				int pos0 = ftell(bits->file) * 8 + bits->cnt;
-				put_vli(bits, 0);
-				int k = i + 1;
-				while (k < pixels && !putput[hilbert(length, k)])
-					++k;
-				--k;
-				put_vli(bits, k - i);
-				i = k;
-				int pos1 = ftell(bits->file) * 8 + bits->cnt;
-				zeros_enc += pos1 - pos0;
+		int planes = count_planes(putput, pixels);
+		put_vli(bits, planes);
+		for (int plane = planes-1; plane >= 0; --plane) {
+			int mask = 1 << plane;
+			for (int i = 0; i < pixels; ++i) {
+				if (putput[hilbert(length, i)] & mask) {
+					put_bit(bits, 1);
+					if (plane == planes-1)
+						putput[hilbert(length, i)] ^= ~mask;
+				} else {
+					int pos0 = ftell(bits->file) * 8 + bits->cnt;
+					put_bit(bits, 0);
+					int k = i + 1;
+					while (k < pixels && !(putput[hilbert(length, k)] & mask))
+						++k;
+					--k;
+					put_vli(bits, k - i);
+					i = k;
+					int pos1 = ftell(bits->file) * 8 + bits->cnt;
+					zeros_enc += pos1 - pos0;
+				}
 			}
 		}
 	}
-	fprintf(stderr, "amount of non-zero values: %d‰\n", (1000 * non_zero) / (3 * pixels));
 	fprintf(stderr, "bits used to encode zeros: %d%%\n", (100 * zeros_enc) / (int)(ftell(bits->file) * 8 + bits->cnt));
 	close_writer(bits);
 	return 0;
