@@ -124,7 +124,7 @@ int main(int argc, char **argv)
 			for (int i = 0; i < pixels; ++i) {
 				if (putput[hilbert(length, i)] & mask) {
 					put_vli(bits, i - last);
-					last = i;
+					last = i + 1;
 					if (plane == planes-1)
 						putput[hilbert(length, i)] ^= ~mask;
 				}

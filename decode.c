@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 			putput[i] = 0;
 		int planes = get_vli(bits);
 		for (int plane = planes-1; plane >= 0; --plane)
-			for (int i = get_vli(bits); i < pixels; i += get_vli(bits))
+			for (int i = get_vli(bits); i < pixels; i += get_vli(bits) + 1)
 				putput[hilbert(length, i)] |= 1 << plane;
 		for (int i = 0; i < pixels; ++i) {
 			int mask = 1 << (planes-1);
