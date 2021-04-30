@@ -142,7 +142,9 @@ int main(int argc, char **argv)
 					if (pmax < planes[j])
 						pmax = planes[j];
 				}
-				for (int plane = pmax-1; plane >= 0; --plane) {
+				int skip = 0;
+				put_vli(bits, skip);
+				for (int plane = pmax-1; plane >= skip; --plane) {
 					for (int j = 0; j < 3; ++j) {
 						if (!quant[j] || plane >= planes[j])
 							continue;
