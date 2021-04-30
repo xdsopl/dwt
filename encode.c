@@ -127,9 +127,11 @@ int main(int argc, char **argv)
 		quantization(values, output, length, lmin, quant[j], rounding);
 	}
 	int trunc_file = 0;
+	int skip = 0;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		int prev_pos = bits_tell(bits);
 		put_bit(bits, 1);
+		put_vli(bits, skip);
 		for (int yoff = 0; yoff < len*2; yoff += len) {
 			for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
 				int planes[3], pmax = 1;
@@ -142,8 +144,6 @@ int main(int argc, char **argv)
 					if (pmax < planes[j])
 						pmax = planes[j];
 				}
-				int skip = 0;
-				put_vli(bits, skip);
 				for (int plane = pmax-1; plane >= skip; --plane) {
 					for (int j = 0; j < 3; ++j) {
 						if (!quant[j] || plane >= planes[j])
@@ -173,6 +173,10 @@ int main(int argc, char **argv)
 			fprintf(stderr, "%d bits over capacity, discarding %d%% of pixels\n", pos-capacity+1, (100*(length*length-len*len)) / (length*length));
 			break;
 		}
+		skip = (pos * (length / len) - capacity) / capacity;
+		skip = skip < 0 ? 0 : skip > 3 ? 3 : skip;
+		if (skip && len < length/4)
+			fprintf(stderr, "skipping %d LSB planes in len %d\n", skip, 2*len);
 	}
 	put_bit(bits, 0);
 	int bits_enc = bits_tell(bits);
