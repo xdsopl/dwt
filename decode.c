@@ -71,6 +71,13 @@ int main(int argc, char **argv)
 	float *output = malloc(sizeof(float) * pixels);
 	int *putput = malloc(sizeof(int) * 3 * pixels);
 	struct image *image = new_image(argv[2], width, height);
+	for (int j = 0; j < 3; ++j) {
+		if (!quant[j])
+			continue;
+		int *values = putput + pixels * j;
+		for (int i = 0; i < pixels; ++i)
+			values[i] = 0;
+	}
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		for (int yoff = 0; yoff < len*2; yoff += len) {
 			for (int xoff = (!yoff && len > lmin/2) * len; xoff < len*2; xoff += len) {
@@ -81,10 +88,6 @@ int main(int argc, char **argv)
 					planes[j] = get_vli(bits);
 					if (pmax < planes[j])
 						pmax = planes[j];
-					int *values = putput + pixels * j;
-					for (int y = 0; y < len; ++y)
-						for (int x = 0; x < len; ++x)
-							values[length*(yoff+y)+xoff+x] = 0;
 				}
 				for (int plane = pmax-1; plane >= 0; --plane) {
 					for (int j = 0; j < 3; ++j) {
