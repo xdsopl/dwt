@@ -20,12 +20,12 @@ void transformation(float *output, float *input, int length, int lmin, int wavel
 		ihaar2d(output, input, lmin, length, 1, 1);
 }
 
-void quantization(float *output, int *input, int length, int lmin, int quant, int truncate)
+void quantization(float *output, int *input, int length, int lmin, int quant, int rounding)
 {
 	for (int j = 0; j < length; ++j) {
 		for (int i = 0; i < length; ++i) {
 			float v = input[length*j+i];
-			if ((i >= lmin/2 || j >= lmin/2) && truncate) {
+			if ((i >= lmin/2 || j >= lmin/2) && rounding) {
 				float bias = 0.375f;
 				if (v < 0.f)
 					v -= bias;
@@ -56,7 +56,7 @@ int main(int argc, char **argv)
 		return 1;
 	int mode = get_bit(bits);
 	int wavelet = get_bit(bits);
-	int truncate = get_bit(bits);
+	int rounding = get_bit(bits);
 	int width = get_vli(bits);
 	int height = get_vli(bits);
 	int lmin = get_vli(bits);
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
 			continue;
 		}
 		int *values = putput + pixels * j;
-		quantization(input, values, length, lmin, quant[j], truncate);
+		quantization(input, values, length, lmin, quant[j], rounding);
 		transformation(output, input, length, lmin, wavelet);
 		copy(image->buffer+j, output, width, height, length, 3);
 	}

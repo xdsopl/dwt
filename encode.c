@@ -20,13 +20,13 @@ void transformation(float *output, float *input, int length, int lmin, int wavel
 		haar2d(output, input, lmin, length, 1, 1);
 }
 
-void quantization(int *output, float *input, int length, int lmin, int quant, int truncate)
+void quantization(int *output, float *input, int length, int lmin, int quant, int rounding)
 {
 	for (int j = 0; j < length; ++j) {
 		for (int i = 0; i < length; ++i) {
 			float v = input[length*j+i];
 			v *= quant;
-			if ((i >= lmin/2 || j >= lmin/2) && truncate)
+			if ((i >= lmin/2 || j >= lmin/2) && rounding)
 				v = truncf(v);
 			else
 				v = nearbyintf(v);
@@ -66,7 +66,7 @@ void copy(float *output, float *input, int width, int height, int length, int st
 int main(int argc, char **argv)
 {
 	if (argc != 3 && argc != 6 && argc != 7 && argc != 8 && argc != 9) {
-		fprintf(stderr, "usage: %s input.ppm output.dwt [Q0 Q1 Q2] [MODE] [WAVELET] [TRUNCATE]\n", argv[0]);
+		fprintf(stderr, "usage: %s input.ppm output.dwt [Q0 Q1 Q2] [MODE] [WAVELET] [ROUNDING]\n", argv[0]);
 		return 1;
 	}
 	struct image *image = read_ppm(argv[1]);
@@ -89,9 +89,9 @@ int main(int argc, char **argv)
 	int wavelet = 1;
 	if (argc >= 8)
 		wavelet = atoi(argv[7]);
-	int truncate = 1;
+	int rounding = 1;
 	if (argc >= 9)
-		truncate = atoi(argv[8]);
+		rounding = atoi(argv[8]);
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);
 	int *putput = malloc(sizeof(int) * 3 * pixels);
@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 		return 1;
 	put_bit(bits, mode);
 	put_bit(bits, wavelet);
-	put_bit(bits, truncate);
+	put_bit(bits, rounding);
 	put_vli(bits, width);
 	put_vli(bits, height);
 	put_vli(bits, lmin);
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
 		int *values = putput + pixels * j;
 		copy(input, image->buffer+j, width, height, length, 3);
 		transformation(output, input, length, lmin, wavelet);
-		quantization(values, output, length, lmin, quant[j], truncate);
+		quantization(values, output, length, lmin, quant[j], rounding);
 	}
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		for (int yoff = 0; yoff < len*2; yoff += len) {
