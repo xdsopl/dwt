@@ -158,6 +158,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+	fprintf(stderr, "%d bits encoded\n", bits_tell(bits));
 	close_writer(bits);
 	return 0;
 }

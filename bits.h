@@ -59,6 +59,11 @@ void close_writer(struct bits *bits)
 	close_reader(bits);
 }
 
+int bits_tell(struct bits *bits)
+{
+	return ftell(bits->file) * 8 + bits->cnt;
+}
+
 void put_bit(struct bits *bits, int b)
 {
 	bits->acc |= !!b << bits->cnt++;
