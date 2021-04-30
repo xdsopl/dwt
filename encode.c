@@ -166,14 +166,14 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-		if (bits_tell(bits) > capacity) {
+		if (bits_tell(bits) >= capacity) {
 			bits_seek(bits, prev_pos);
-			put_bit(bits, 0);
 			trunc_file = 1;
 			fprintf(stderr, "discarding %d%% of pixels\n", (100*(length*length-len*len)) / (length*length));
 			break;
 		}
 	}
+	put_bit(bits, 0);
 	int bits_enc = bits_tell(bits);
 	fprintf(stderr, "%d bits encoded\n", bits_enc);
 	close_writer(bits);
