@@ -74,25 +74,38 @@ int main(int argc, char **argv)
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		for (int yoff = 0; yoff < len*2; yoff += len) {
 			for (int xoff = (!yoff && len > lmin/2) * len; xoff < len*2; xoff += len) {
+				int planes[3], pmax = 1;
 				for (int j = 0; j < 3; ++j) {
 					if (!quant[j])
 						continue;
+					planes[j] = get_vli(bits);
+					if (pmax < planes[j])
+						pmax = planes[j];
 					int *values = putput + pixels * j;
 					for (int y = 0; y < len; ++y)
 						for (int x = 0; x < len; ++x)
 							values[length*(yoff+y)+xoff+x] = 0;
-					int planes = get_vli(bits);
-					for (int plane = planes-1; plane >= 0; --plane) {
+				}
+				for (int plane = pmax-1; plane >= 0; --plane) {
+					for (int j = 0; j < 3; ++j) {
+						if (!quant[j] || plane >= planes[j])
+							continue;
+						int *values = putput + pixels * j;
 						for (int i = get_vli(bits); i < len*len; i += get_vli(bits) + 1) {
 							struct position pos = hilbert(len, i);
 							int idx = length * (yoff + pos.y) + xoff + pos.x;
 							values[idx] |= 1 << plane;
 						}
 					}
+				}
+				for (int j = 0; j < 3; ++j) {
+					if (!quant[j])
+						continue;
+					int *values = putput + pixels * j;
 					for (int y = 0; y < len; ++y) {
 						for (int x = 0; x < len; ++x) {
 							int idx = length * (yoff + y) + xoff + x;
-							int mask = 1 << (planes-1);
+							int mask = 1 << (planes[j]-1);
 							if (values[idx] & mask)
 								values[idx] ^= ~mask;
 						}

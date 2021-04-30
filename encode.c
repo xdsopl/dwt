@@ -125,13 +125,21 @@ int main(int argc, char **argv)
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		for (int yoff = 0; yoff < len*2; yoff += len) {
 			for (int xoff = (!yoff && len > lmin/2) * len; xoff < len*2; xoff += len) {
+				int planes[3], pmax = 1;
 				for (int j = 0; j < 3; ++j) {
 					if (!quant[j])
 						continue;
 					int *values = putput + pixels * j;
-					int planes = count_planes(values, xoff, yoff, len, length);
-					put_vli(bits, planes);
-					for (int plane = planes-1; plane >= 0; --plane) {
+					planes[j] = count_planes(values, xoff, yoff, len, length);
+					put_vli(bits, planes[j]);
+					if (pmax < planes[j])
+						pmax = planes[j];
+				}
+				for (int plane = pmax-1; plane >= 0; --plane) {
+					for (int j = 0; j < 3; ++j) {
+						if (!quant[j] || plane >= planes[j])
+							continue;
+						int *values = putput + pixels * j;
 						int mask = 1 << plane;
 						int last = 0;
 						for (int i = 0; i < len*len; ++i) {
@@ -140,7 +148,7 @@ int main(int argc, char **argv)
 							if (values[idx] & mask) {
 								put_vli(bits, i - last);
 								last = i + 1;
-								if (plane == planes-1)
+								if (plane == planes[j]-1)
 									values[idx] ^= ~mask;
 							}
 						}
