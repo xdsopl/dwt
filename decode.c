@@ -82,7 +82,7 @@ int main(int argc, char **argv)
 		if (!get_bit(bits))
 			break;
 		for (int yoff = 0; yoff < len*2; yoff += len) {
-			for (int xoff = (!yoff && len > lmin/2) * len; xoff < len*2; xoff += len) {
+			for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
 				int planes[3], pmax = 1;
 				for (int j = 0; j < 3; ++j) {
 					if (!quant[j])

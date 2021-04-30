@@ -131,7 +131,7 @@ int main(int argc, char **argv)
 		int prev_pos = bits_tell(bits);
 		put_bit(bits, 1);
 		for (int yoff = 0; yoff < len*2; yoff += len) {
-			for (int xoff = (!yoff && len > lmin/2) * len; xoff < len*2; xoff += len) {
+			for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
 				int planes[3], pmax = 1;
 				for (int j = 0; j < 3; ++j) {
 					if (!quant[j])
@@ -170,6 +170,7 @@ int main(int argc, char **argv)
 			bits_seek(bits, prev_pos);
 			put_bit(bits, 0);
 			trunc_file = 1;
+			fprintf(stderr, "discarding %d%% of pixels\n", (100*(length*length-len*len)) / (length*length));
 			break;
 		}
 	}
