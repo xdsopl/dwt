@@ -79,8 +79,7 @@ void bits_seek(struct bits *bits, int pos)
 		int c = fgetc(bits->file);
 		if (c == EOF)
 			fprintf(stderr, "could not read from file \"%s\".\n", bits->name);
-		if (c == ungetc(c, bits->file))
-			fprintf(stderr, "could not unread from file \"%s\".\n", bits->name);
+		fseek(bits->file, bytes, SEEK_SET);
 		bits->acc = c & ((1<<bits->cnt)-1);
 	}
 }
