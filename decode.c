@@ -79,6 +79,8 @@ int main(int argc, char **argv)
 			values[i] = 0;
 	}
 	for (int len = lmin/2; len <= length/2; len *= 2) {
+		if (!get_bit(bits))
+			break;
 		for (int yoff = 0; yoff < len*2; yoff += len) {
 			for (int xoff = (!yoff && len > lmin/2) * len; xoff < len*2; xoff += len) {
 				int planes[3], pmax = 1;

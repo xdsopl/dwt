@@ -4,6 +4,7 @@ Encoder for lossy image compression based on the discrete wavelet transformation
 Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 */
 
+#include <unistd.h>
 #include "haar.h"
 #include "cdf97.h"
 #include "dwt.h"
@@ -65,8 +66,8 @@ void copy(float *output, float *input, int width, int height, int length, int st
 
 int main(int argc, char **argv)
 {
-	if (argc != 3 && argc != 6 && argc != 7 && argc != 8 && argc != 9) {
-		fprintf(stderr, "usage: %s input.ppm output.dwt [Q0 Q1 Q2] [MODE] [WAVELET] [ROUNDING]\n", argv[0]);
+	if (argc != 3 && argc != 6 && argc != 7 && argc != 8 && argc != 9 && argc != 10) {
+		fprintf(stderr, "usage: %s input.ppm output.dwt [Q0 Q1 Q2] [MODE] [WAVELET] [ROUNDING] [CAPACITY]\n", argv[0]);
 		return 1;
 	}
 	struct image *image = read_ppm(argv[1]);
@@ -92,6 +93,9 @@ int main(int argc, char **argv)
 	int rounding = 1;
 	if (argc >= 9)
 		rounding = atoi(argv[8]);
+	int capacity = 1 << 23;
+	if (argc >= 10)
+		capacity = atoi(argv[9]);
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);
 	int *putput = malloc(sizeof(int) * 3 * pixels);
@@ -122,7 +126,10 @@ int main(int argc, char **argv)
 		transformation(output, input, length, lmin, wavelet);
 		quantization(values, output, length, lmin, quant[j], rounding);
 	}
+	int trunc_file = 0;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
+		int prev_pos = bits_tell(bits);
+		put_bit(bits, 1);
 		for (int yoff = 0; yoff < len*2; yoff += len) {
 			for (int xoff = (!yoff && len > lmin/2) * len; xoff < len*2; xoff += len) {
 				int planes[3], pmax = 1;
@@ -157,9 +164,20 @@ int main(int argc, char **argv)
 				}
 			}
 		}
+		if (bits_tell(bits) > capacity) {
+			bits_seek(bits, prev_pos);
+			put_bit(bits, 0);
+			trunc_file = 1;
+			break;
+		}
 	}
-	fprintf(stderr, "%d bits encoded\n", bits_tell(bits));
+	int bits_enc = bits_tell(bits);
+	fprintf(stderr, "%d bits encoded\n", bits_enc);
 	close_writer(bits);
+	if (trunc_file && truncate(argv[2], (bits_enc+7)/8)) {
+		fprintf(stderr, "truncation of file %s unsucessful\n", argv[2]);
+		return 1;
+	}
 	return 0;
 }
 

@@ -38,7 +38,7 @@ struct bits *bits_reader(char *name)
 
 struct bits *bits_writer(char *name)
 {
-	FILE *file = fopen(name, "w");
+	FILE *file = fopen(name, "w+");
 	if (!file) {
 		fprintf(stderr, "could not open \"%s\" file to write.\n", name);
 		return 0;
@@ -62,6 +62,27 @@ void close_writer(struct bits *bits)
 int bits_tell(struct bits *bits)
 {
 	return ftell(bits->file) * 8 + bits->cnt;
+}
+
+// invalidates all bits after pos when writing
+void bits_seek(struct bits *bits, int pos)
+{
+	int bytes = pos / 8;
+	bits->cnt = pos % 8;
+	if (ftell(bits->file) == bytes) {
+		bits->acc &= ((1<<bits->cnt)-1);
+		return;
+	}
+	fseek(bits->file, bytes, SEEK_SET);
+	bits->acc = 0;
+	if (bits->cnt) {
+		int c = fgetc(bits->file);
+		if (c == EOF)
+			fprintf(stderr, "could not read from file \"%s\".\n", bits->name);
+		if (c == ungetc(c, bits->file))
+			fprintf(stderr, "could not unread from file \"%s\".\n", bits->name);
+		bits->acc = c & ((1<<bits->cnt)-1);
+	}
 }
 
 void put_bit(struct bits *bits, int b)
