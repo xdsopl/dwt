@@ -166,10 +166,11 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-		if (bits_tell(bits) >= capacity) {
+		int pos = bits_tell(bits);
+		if (pos >= capacity) {
 			bits_seek(bits, prev_pos);
 			trunc_file = 1;
-			fprintf(stderr, "discarding %d%% of pixels\n", (100*(length*length-len*len)) / (length*length));
+			fprintf(stderr, "%d bits over capacity, discarding %d%% of pixels\n", pos-capacity+1, (100*(length*length-len*len)) / (length*length));
 			break;
 		}
 	}
