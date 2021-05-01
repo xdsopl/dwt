@@ -56,10 +56,12 @@ int count_planes(int *values, int xoff, int yoff, int len, int length)
 
 void copy(float *output, float *input, int width, int height, int length, int stride)
 {
+	int xoff = (length - width) / 2;
+	int yoff = (length - height) / 2;
 	for (int j = 0; j < length; ++j)
 		for (int i = 0; i < length; ++i)
-			if (j < height && i < width)
-				output[length*j+i] = input[(width*j+i)*stride];
+			if (j >= yoff && j < height+yoff && i >= xoff && i < width+xoff)
+				output[length*j+i] = input[(width*(j-yoff)+i-xoff)*stride];
 			else
 				output[length*j+i] = 0;
 }

@@ -40,9 +40,11 @@ void quantization(float *output, int *input, int length, int lmin, int quant, in
 
 void copy(float *output, float *input, int width, int height, int length, int stride)
 {
+	int xoff = (length - width) / 2;
+	int yoff = (length - height) / 2;
 	for (int j = 0; j < height; ++j)
 		for (int i = 0; i < width; ++i)
-			output[(width*j+i)*stride] = input[length*j+i];
+			output[(width*j+i)*stride] = input[length*(yoff+j)+xoff+i];
 }
 
 int main(int argc, char **argv)
