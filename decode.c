@@ -80,7 +80,6 @@ int main(int argc, char **argv)
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);
 	int *putput = malloc(sizeof(int) * 3 * pixels);
-	struct image *image = new_image(argv[2], width, height);
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j])
 			continue;
@@ -90,8 +89,19 @@ int main(int argc, char **argv)
 	}
 	int skip_list[16] = { 0 }, *skip_entry = skip_list;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
-		if (!get_bit(bits))
+		if (!get_bit(bits)) {
+			width /= length / len;
+			height /= length / len;
+			for (int j = 0; j < 3; ++j)
+				quant[j] *= length / len;
+			for (int j = 0; j < 3; ++j)
+				for (int y = 0; y < len; ++y)
+					for (int x = 0; x < len; ++x)
+						putput[len*(len*j+y)+x] = putput[length*(length*j+y)+x];
+			length = len;
+			pixels = length * length;
 			break;
+		}
 		int skip = 0;
 		if (rounding)
 			skip = get_vli(bits);
@@ -134,6 +144,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+	struct image *image = new_image(argv[2], width, height);
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j]) {
 			for (int i = 0; i < pixels; ++i)
