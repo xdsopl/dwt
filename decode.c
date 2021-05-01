@@ -83,7 +83,9 @@ int main(int argc, char **argv)
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		if (!get_bit(bits))
 			break;
-		int skip = get_vli(bits);
+		int skip = 0;
+		if (rounding)
+			skip = get_vli(bits);
 		for (int yoff = 0; yoff < len*2; yoff += len) {
 			for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
 				int planes[3], pmax = 1;

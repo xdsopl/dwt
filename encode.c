@@ -133,7 +133,8 @@ int main(int argc, char **argv)
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		int prev_pos = bits_tell(bits);
 		put_bit(bits, 1);
-		put_vli(bits, skip);
+		if (rounding)
+			put_vli(bits, skip);
 		int pmin = sizeof(int) * 8;
 		for (int yoff = 0; yoff < len*2; yoff += len) {
 			for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
@@ -178,11 +179,13 @@ int main(int argc, char **argv)
 			fprintf(stderr, "%d bits over capacity, discarding %d%% of pixels\n", pos-capacity+1, (100*(length*length-len*len)) / (length*length));
 			break;
 		}
-		skip = (pos * (length / len) - capacity) / capacity;
-		int skip_max = pmin >= 2 ? pmin-2 : 0;
-		skip = skip < 0 ? 0 : skip > skip_max ? skip_max : skip;
-		if (skip && len < length/4)
-			fprintf(stderr, "skipping %d LSB planes in len %d\n", skip, 2*len);
+		if (rounding) {
+			skip = (pos * (length / len) - capacity) / capacity;
+			int skip_max = pmin >= 2 ? pmin-2 : 0;
+			skip = skip < 0 ? 0 : skip > skip_max ? skip_max : skip;
+			if (skip && len < length/4)
+				fprintf(stderr, "skipping %d LSB planes in len %d\n", skip, 2*len);
+		}
 	}
 	put_bit(bits, 0);
 	int bits_enc = bits_tell(bits);
