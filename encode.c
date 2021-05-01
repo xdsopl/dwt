@@ -134,6 +134,7 @@ int main(int argc, char **argv)
 		int prev_pos = bits_tell(bits);
 		put_bit(bits, 1);
 		put_vli(bits, skip);
+		int pmin = sizeof(int) * 8;
 		for (int yoff = 0; yoff < len*2; yoff += len) {
 			for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
 				int planes[3], pmax = 1;
@@ -143,6 +144,8 @@ int main(int argc, char **argv)
 					int *values = putput + pixels * j;
 					planes[j] = count_planes(values, xoff, yoff, len, length);
 					put_vli(bits, planes[j]);
+					if (pmin > planes[j])
+						pmin = planes[j];
 					if (pmax < planes[j])
 						pmax = planes[j];
 				}
@@ -176,7 +179,8 @@ int main(int argc, char **argv)
 			break;
 		}
 		skip = (pos * (length / len) - capacity) / capacity;
-		skip = skip < 0 ? 0 : skip > 3 ? 3 : skip;
+		int skip_max = pmin >= 2 ? pmin-2 : 0;
+		skip = skip < 0 ? 0 : skip > skip_max ? skip_max : skip;
 		if (skip && len < length/4)
 			fprintf(stderr, "skipping %d LSB planes in len %d\n", skip, 2*len);
 	}
