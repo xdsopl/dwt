@@ -20,20 +20,28 @@ void transformation(float *output, float *input, int length, int lmin, int wavel
 		ihaar2d(output, input, lmin, length, 1, 1);
 }
 
-void quantization(float *output, int *input, int length, int lmin, int quant, int rounding)
+void quantization(float *output, int *input, int length, int lmin, int quant, int rounding, int *skip)
 {
-	for (int j = 0; j < length; ++j) {
-		for (int i = 0; i < length; ++i) {
-			float v = input[length*j+i];
-			if ((i >= lmin/2 || j >= lmin/2) && rounding) {
-				float bias = 0.375f;
-				if (v < 0.f)
-					v -= bias;
-				else if (v > 0.f)
-					v += bias;
+	for (int len = lmin/2; len <= length/2; len *= 2, ++skip) {
+		for (int yoff = 0; yoff < len*2; yoff += len) {
+			for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
+				for (int y = 0; y < len; ++y) {
+					for (int x = 0; x < len; ++x) {
+						int idx = length * (yoff + y) + xoff + x;
+						float v = input[idx];
+						if ((xoff || yoff) && rounding) {
+							float bias = 0.375f;
+							bias *= 1 << *skip;
+							if (v < 0.f)
+								v -= bias;
+							else if (v > 0.f)
+								v += bias;
+						}
+						v /= quant;
+						output[idx] = v;
+					}
+				}
 			}
-			v /= quant;
-			output[length*j+i] = v;
 		}
 	}
 }
@@ -80,12 +88,14 @@ int main(int argc, char **argv)
 		for (int i = 0; i < pixels; ++i)
 			values[i] = 0;
 	}
+	int skip_list[16], *skip_entry = skip_list;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		if (!get_bit(bits))
 			break;
 		int skip = 0;
 		if (rounding)
 			skip = get_vli(bits);
+		*skip_entry++ = skip;
 		for (int yoff = 0; yoff < len*2; yoff += len) {
 			for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
 				int planes[3], pmax = 1;
@@ -131,7 +141,7 @@ int main(int argc, char **argv)
 			continue;
 		}
 		int *values = putput + pixels * j;
-		quantization(input, values, length, lmin, quant[j], rounding);
+		quantization(input, values, length, lmin, quant[j], rounding, skip_list);
 		transformation(output, input, length, lmin, wavelet);
 		copy(image->buffer+j, output, width, height, length, 3);
 	}
