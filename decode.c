@@ -90,10 +90,11 @@ int main(int argc, char **argv)
 	int skip_list[16] = { 0 }, *skip_entry = skip_list;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		if (!get_bit(bits)) {
-			width /= length / len;
-			height /= length / len;
+			int factor = length / len;
+			width /= factor;
+			height /= factor;
 			for (int j = 0; j < 3; ++j)
-				quant[j] *= length / len;
+				quant[j] *= factor;
 			for (int j = 0; j < 3; ++j)
 				for (int y = 0; y < len; ++y)
 					for (int x = 0; x < len; ++x)
