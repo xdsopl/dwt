@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 		for (int i = 0; i < pixels; ++i)
 			values[i] = 0;
 	}
-	int skip_list[16], *skip_entry = skip_list;
+	int skip_list[16] = { 0 }, *skip_entry = skip_list;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		if (!get_bit(bits))
 			break;
