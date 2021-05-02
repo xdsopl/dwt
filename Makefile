@@ -4,8 +4,7 @@ LDLIBS = -lm
 all: encode decode
 
 test: encode decode
-	./encode input.ppm putput.dwt
-	./decode putput.dwt output.ppm
+	./encode input.ppm /dev/stdout | ./decode /dev/stdin output.ppm
 
 clean:
 	rm -f encode decode
