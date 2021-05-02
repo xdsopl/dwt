@@ -4,7 +4,6 @@ Encoder for lossy image compression based on the discrete wavelet transformation
 Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 */
 
-#include <unistd.h>
 #include "haar.h"
 #include "cdf97.h"
 #include "dwt.h"
@@ -109,7 +108,7 @@ int main(int argc, char **argv)
 		for (int i = 0; i < 3 * width * height; ++i)
 			image->buffer[i] -= 0.5f;
 	}
-	struct bits *bits = bits_writer(argv[2]);
+	struct bits_writer *bits = bits_writer(argv[2], capacity);
 	if (!bits)
 		return 1;
 	put_bit(bits, mode);
@@ -128,10 +127,9 @@ int main(int argc, char **argv)
 		transformation(output, input, length, lmin, wavelet);
 		quantization(values, output, length, lmin, quant[j], rounding);
 	}
-	int trunc_file = 0;
 	int skip = 0;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
-		int prev_pos = bits_tell(bits);
+		bits_flush(bits);
 		put_bit(bits, 1);
 		if (rounding)
 			put_vli(bits, skip);
@@ -172,15 +170,14 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-		int pos = bits_tell(bits);
-		if (pos >= capacity) {
-			bits_seek(bits, prev_pos);
-			trunc_file = 1;
-			fprintf(stderr, "%d bits over capacity, discarding %d%% of pixels\n", pos-capacity+1, (100*(length*length-len*len)) / (length*length));
+		int cnt = bits_count(bits);
+		if (cnt >= capacity) {
+			bits_discard(bits);
+			fprintf(stderr, "%d bits over capacity, discarding %d%% of pixels\n", cnt-capacity+1, (100*(length*length-len*len)) / (length*length));
 			break;
 		}
 		if (rounding) {
-			skip = (pos * (length / len) - capacity) / capacity;
+			skip = (cnt * (length / len) - capacity) / capacity;
 			int skip_max = pmin >= 2 ? pmin-2 : 0;
 			skip = skip < 0 ? 0 : skip > skip_max ? skip_max : skip;
 			if (skip && len < length/4)
@@ -188,13 +185,8 @@ int main(int argc, char **argv)
 		}
 	}
 	put_bit(bits, 0);
-	int bits_enc = bits_tell(bits);
-	fprintf(stderr, "%d bits encoded\n", bits_enc);
+	fprintf(stderr, "%d bits encoded\n", bits_count(bits));
 	close_writer(bits);
-	if (trunc_file && truncate(argv[2], (bits_enc+7)/8)) {
-		fprintf(stderr, "truncation of file %s unsucessful\n", argv[2]);
-		return 1;
-	}
 	return 0;
 }
 

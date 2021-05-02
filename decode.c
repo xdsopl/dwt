@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "usage: %s input.dwt output.ppm\n", argv[0]);
 		return 1;
 	}
-	struct bits *bits = bits_reader(argv[1]);
+	struct bits_reader *bits = bits_reader(argv[1]);
 	if (!bits)
 		return 1;
 	int mode = get_bit(bits);

@@ -9,16 +9,31 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include <stdlib.h>
 #include <stdio.h>
 
-struct bits {
+struct bits_reader {
 	FILE *file;
 	char *name;
 	int acc;
 	int cnt;
 };
 
-struct bits *new_bits(FILE *file, char *name)
+struct bits_writer {
+	FILE *file;
+	char *name;
+	char *buf;
+	int cap;
+	int cnt;
+	int rem;
+	int num;
+};
+
+struct bits_reader *bits_reader(char *name)
 {
-	struct bits *bits = malloc(sizeof(struct bits));
+	FILE *file = fopen(name, "r");
+	if (!file) {
+		fprintf(stderr, "could not open \"%s\" file to read.\n", name);
+		return 0;
+	}
+	struct bits_reader *bits = malloc(sizeof(struct bits_reader));
 	bits->file = file;
 	bits->name = name;
 	bits->acc = 0;
@@ -26,83 +41,93 @@ struct bits *new_bits(FILE *file, char *name)
 	return bits;
 }
 
-struct bits *bits_reader(char *name)
+struct bits_writer *bits_writer(char *name, int capacity)
 {
-	FILE *file = fopen(name, "r");
-	if (!file) {
-		fprintf(stderr, "could not open \"%s\" file to read.\n", name);
-		return 0;
-	}
-	return new_bits(file, name);
-}
-
-struct bits *bits_writer(char *name)
-{
-	FILE *file = fopen(name, "w+");
+	FILE *file = fopen(name, "w");
 	if (!file) {
 		fprintf(stderr, "could not open \"%s\" file to write.\n", name);
 		return 0;
 	}
-	return new_bits(file, name);
+	struct bits_writer *bits = malloc(sizeof(struct bits_writer));
+	bits->file = file;
+	bits->name = name;
+	bits->cap = (capacity + 7) / 8;
+	bits->buf = malloc(bits->cap);
+	for (int i = 0; i < bits->cap; ++i)
+		bits->buf[i] = 0;
+	bits->cnt = 0;
+	bits->rem = 0;
+	bits->num = 0;
+	return bits;
 }
 
-void close_reader(struct bits *bits)
+int bits_count(struct bits_writer *bits)
+{
+	return bits->num * 8 + bits->cnt;
+}
+
+void bits_flush(struct bits_writer *bits)
+{
+	for (int i = 0; i < bits->cnt/8; ++i) {
+		int c = bits->buf[i] & 255;
+		bits->buf[i] = 0;
+		bits->num += 1;
+		if (c != fputc(c, bits->file))
+			fprintf(stderr, "could not write to file \"%s\".\n", bits->name);
+	}
+	bits->rem = bits->cnt % 8;
+	if (bits->rem && bits->cnt/8) {
+		bits->buf[0] = bits->buf[bits->cnt/8];
+		bits->buf[bits->cnt/8] = 0;
+	}
+	bits->cnt = bits->rem;
+}
+
+void bits_discard(struct bits_writer *bits)
+{
+	bits->buf[0] &= (1 << bits->rem) - 1;
+	for (int i = 1; i < (bits->cnt+7)/8; ++i)
+		bits->buf[i] = 0;
+	bits->cnt = bits->rem;
+}
+
+void close_reader(struct bits_reader *bits)
 {
 	fclose(bits->file);
 	free(bits);
 }
 
-void close_writer(struct bits *bits)
+void close_writer(struct bits_writer *bits)
 {
-	if (bits->cnt && bits->acc != fputc(bits->acc, bits->file))
+	bits_flush(bits);
+	int c = bits->buf[0] & 255;
+	if (bits->rem && c != fputc(c, bits->file))
 		fprintf(stderr, "could not write to file \"%s\".\n", bits->name);
-	close_reader(bits);
+	fclose(bits->file);
+	free(bits->buf);
+	free(bits);
 }
 
-int bits_tell(struct bits *bits)
+int put_bit(struct bits_writer *bits, int b)
 {
-	return ftell(bits->file) * 8 + bits->cnt;
+	if (bits->cnt >= bits->cap * 8)
+		return 1;
+	bits->buf[bits->cnt/8] |= !!b << bits->cnt%8;
+	bits->cnt += 1;
+	return 0;
 }
 
-// invalidates all bits after pos when writing
-void bits_seek(struct bits *bits, int pos)
+int write_bits(struct bits_writer *bits, int b, int n)
 {
-	int bytes = pos / 8;
-	bits->cnt = pos % 8;
-	if (ftell(bits->file) == bytes) {
-		bits->acc &= ((1<<bits->cnt)-1);
-		return;
+	for (int i = 0; i < n; ++i) {
+		int ret = put_bit(bits, (b>>i)&1);
+		if (ret)
+			return ret;
 	}
-	fseek(bits->file, bytes, SEEK_SET);
-	bits->acc = 0;
-	if (bits->cnt) {
-		int c = fgetc(bits->file);
-		if (c == EOF)
-			fprintf(stderr, "could not read from file \"%s\".\n", bits->name);
-		fseek(bits->file, bytes, SEEK_SET);
-		bits->acc = c & ((1<<bits->cnt)-1);
-	}
+	return 0;
 }
 
-void put_bit(struct bits *bits, int b)
-{
-	bits->acc |= !!b << bits->cnt++;
-	if (bits->cnt >= 8) {
-		bits->cnt -= 8;
-		int c = bits->acc & 255;
-		bits->acc >>= 8;
-		if (c != fputc(c, bits->file))
-			fprintf(stderr, "could not write to file \"%s\".\n", bits->name);
-	}
-}
-
-void write_bits(struct bits *bits, int b, int n)
-{
-	for (int i = 0; i < n; ++i)
-		put_bit(bits, (b>>i)&1);
-}
-
-int get_bit(struct bits *bits)
+int get_bit(struct bits_reader *bits)
 {
 	if (!bits->cnt) {
 		int c = fgetc(bits->file);
@@ -119,7 +144,7 @@ int get_bit(struct bits *bits)
 	return b;
 }
 
-void read_bits(struct bits *bits, int *b, int n)
+void read_bits(struct bits_reader *bits, int *b, int n)
 {
 	int a = 0;
 	for (int i = 0; i < n; ++i)
