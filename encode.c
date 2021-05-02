@@ -108,8 +108,10 @@ int main(int argc, char **argv)
 		transformation(output + pixels * j, input, length, lmin, wavelet);
 	}
 	int qadj_max = 0;
-	while (quant[0] >> qadj_max && quant[1] >> qadj_max && quant[2] >> qadj_max)
-		++qadj_max;
+	while ((!quant[0] || quant[0] >> qadj_max) &&
+		(!quant[1] || quant[1] >> qadj_max) &&
+		(!quant[2] || quant[2] >> qadj_max))
+			++qadj_max;
 	if (qadj_max > 0)
 		--qadj_max;
 	int qadj = 0;
