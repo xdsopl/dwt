@@ -145,6 +145,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+	close_reader(bits);
 	struct image *image = new_image(argv[2], width, height);
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j]) {
@@ -157,7 +158,6 @@ int main(int argc, char **argv)
 		transformation(output, input, length, lmin, wavelet);
 		copy(image->buffer+j, output, width, height, length, 3);
 	}
-	close_reader(bits);
 	if (mode) {
 		for (int i = 0; i < width * height; ++i)
 			image->buffer[3*i] += 0.5f;
