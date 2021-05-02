@@ -20,28 +20,21 @@ void transformation(float *output, float *input, int length, int lmin, int wavel
 		ihaar2d(output, input, lmin, length, 1, 1);
 }
 
-void quantization(float *output, int *input, int length, int lmin, int quant, int rounding, int *skip)
+void quantization(float *values, int length, int len, int xoff, int yoff, int quant, int rounding)
 {
-	for (int len = lmin/2; len <= length/2; len *= 2, ++skip) {
-		for (int yoff = 0; yoff < len*2; yoff += len) {
-			for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
-				for (int y = 0; y < len; ++y) {
-					for (int x = 0; x < len; ++x) {
-						int idx = length * (yoff + y) + xoff + x;
-						float v = input[idx];
-						if ((xoff || yoff) && rounding) {
-							float bias = 0.375f;
-							bias *= 1 << *skip;
-							if (v < 0.f)
-								v -= bias;
-							else if (v > 0.f)
-								v += bias;
-						}
-						v /= quant;
-						output[idx] = v;
-					}
-				}
+	for (int y = 0; y < len; ++y) {
+		for (int x = 0; x < len; ++x) {
+			int idx = length * (yoff + y) + xoff + x;
+			float v = values[idx];
+			if (rounding) {
+				float bias = 0.375f;
+				if (v < 0.f)
+					v -= bias;
+				else if (v > 0.f)
+					v += bias;
 			}
+			v /= quant;
+			values[idx] = v;
 		}
 	}
 }
@@ -77,85 +70,59 @@ int main(int argc, char **argv)
 	while (length < width || length < height)
 		length *= 2;
 	int pixels = length * length;
-	float *input = malloc(sizeof(float) * pixels);
-	float *output = malloc(sizeof(float) * pixels);
-	int *putput = malloc(sizeof(int) * 3 * pixels);
-	for (int j = 0; j < 3; ++j) {
-		if (!quant[j])
-			continue;
-		int *values = putput + pixels * j;
-		for (int i = 0; i < pixels; ++i)
-			values[i] = 0;
-	}
-	int skip_list[16] = { 0 }, *skip_entry = skip_list;
+	float *input = malloc(sizeof(float) * 3 * pixels);
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		if (!get_bit(bits)) {
 			int factor = length / len;
 			width /= factor;
 			height /= factor;
 			for (int j = 0; j < 3; ++j)
-				quant[j] *= factor;
-			for (int j = 0; j < 3; ++j)
 				for (int y = 0; y < len; ++y)
 					for (int x = 0; x < len; ++x)
-						putput[len*(len*j+y)+x] = putput[length*(length*j+y)+x];
+						input[len*(len*j+y)+x] = input[length*(length*j+y)+x] / factor;
 			length = len;
 			pixels = length * length;
 			break;
 		}
-		int skip = 0;
-		if (rounding)
-			skip = get_vli(bits);
-		*skip_entry++ = skip;
-		for (int yoff = 0; yoff < len*2; yoff += len) {
-			for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
-				int planes[3], pmax = 1;
-				for (int j = 0; j < 3; ++j) {
-					if (!quant[j])
-						continue;
-					planes[j] = get_vli(bits);
-					if (pmax < planes[j])
-						pmax = planes[j];
-				}
-				for (int plane = pmax-1; plane >= skip; --plane) {
-					for (int j = 0; j < 3; ++j) {
-						if (!quant[j] || plane >= planes[j])
-							continue;
-						int *values = putput + pixels * j;
-						for (int i = get_vli(bits); i < len*len; i += get_vli(bits) + 1) {
-							struct position pos = hilbert(len, i);
-							int idx = length * (yoff + pos.y) + xoff + pos.x;
-							values[idx] |= 1 << plane;
+		int qadj = get_vli(bits);
+		for (int j = 0; j < 3; ++j) {
+			if (!quant[j])
+				continue;
+			float *values = input + pixels * j;
+			for (int yoff = 0; yoff < len*2; yoff += len) {
+				for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
+					for (int i = 0; i < len*len; ++i) {
+						struct position pos = hilbert(len, i);
+						int idx = length * (yoff + pos.y) + xoff + pos.x;
+						int val = get_vli(bits);
+						if (val) {
+							if (get_bit(bits))
+								val = -val;
+						} else {
+							int cnt = get_vli(bits);
+							for (int k = 0; k < cnt; ++k) {
+								values[idx] = 0;
+								struct position pos = hilbert(len, ++i);
+								idx = length * (yoff + pos.y) + xoff + pos.x;
+							}
 						}
+						values[idx] = val;
 					}
-				}
-				for (int j = 0; j < 3; ++j) {
-					if (!quant[j])
-						continue;
-					int *values = putput + pixels * j;
-					for (int y = 0; y < len; ++y) {
-						for (int x = 0; x < len; ++x) {
-							int idx = length * (yoff + y) + xoff + x;
-							int mask = 1 << (planes[j]-1);
-							if (values[idx] & mask)
-								values[idx] ^= ~mask;
-						}
-					}
+					quantization(values, length, len, xoff, yoff, quant[j] >> qadj, (xoff || yoff) && rounding);
 				}
 			}
 		}
 	}
 	close_reader(bits);
 	struct image *image = new_image(argv[2], width, height);
+	float *output = malloc(sizeof(float) * pixels);
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j]) {
 			for (int i = 0; i < pixels; ++i)
 				image->buffer[3*i+j] = 0;
 			continue;
 		}
-		int *values = putput + pixels * j;
-		quantization(input, values, length, lmin, quant[j], rounding, skip_list);
-		transformation(output, input, length, lmin, wavelet);
+		transformation(output, input + pixels * j, length, lmin, wavelet);
 		copy(image->buffer+j, output, width, height, length, 3);
 	}
 	if (mode) {
