@@ -48,8 +48,11 @@ void copy(float *output, float *input, int width, int height, int length, int st
 		for (int i = 0; i < width; ++i)
 			sum += input[(width*j+i)*stride];
 	float avg = sum / (width * height);
-	int xoff = (length - width) / 2;
-	int yoff = (length - height) / 2;
+	int xoff = 0, yoff = 0;
+	if (0) {
+		xoff = (length - width) / 2;
+		yoff = (length - height) / 2;
+	}
 	for (int j = 0; j < length; ++j)
 		for (int i = 0; i < length; ++i)
 			if (j >= yoff && j < height+yoff && i >= xoff && i < width+xoff)
