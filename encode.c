@@ -38,6 +38,11 @@ void quantization(float *values, int length, int len, int xoff, int yoff, int qu
 
 void copy(float *output, float *input, int width, int height, int length, int stride)
 {
+	if (width == length && height == length) {
+		for (int i = 0; i < length * length; ++i)
+			output[i] = input[i*stride];
+		return;
+	}
 	float sum = 0.f;
 	for (int j = 0; j < height; ++j)
 		for (int i = 0; i < width; ++i)
