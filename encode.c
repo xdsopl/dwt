@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 		int cnt = bits_count(bits);
 		if (cnt >= capacity) {
 			bits_discard(bits);
-			fprintf(stderr, "%d bits over capacity, discarding %d%% of pixels\n", cnt-capacity+1, (100*(length*length-len*len)) / (length*length));
+			fprintf(stderr, "%d bits over capacity, discarding %.1f%% of pixels\n", cnt-capacity+1, (100.f*(length*length-len*len))/(length*length));
 			break;
 		}
 		qadj = (cnt * (length / len) - capacity) / capacity;
