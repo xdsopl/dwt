@@ -38,6 +38,11 @@ void quantization(float *values, int length, int len, int xoff, int yoff, int qu
 
 void copy(float *output, float *input, int width, int height, int length, int stride)
 {
+	float sum = 0.f;
+	for (int j = 0; j < height; ++j)
+		for (int i = 0; i < width; ++i)
+			sum += input[(width*j+i)*stride];
+	float avg = sum / (width * height);
 	int xoff = (length - width) / 2;
 	int yoff = (length - height) / 2;
 	for (int j = 0; j < length; ++j)
@@ -45,7 +50,7 @@ void copy(float *output, float *input, int width, int height, int length, int st
 			if (j >= yoff && j < height+yoff && i >= xoff && i < width+xoff)
 				output[length*j+i] = input[(width*(j-yoff)+i-xoff)*stride];
 			else
-				output[length*j+i] = 0;
+				output[length*j+i] = avg;
 }
 
 int main(int argc, char **argv)
