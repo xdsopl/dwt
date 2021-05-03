@@ -88,6 +88,16 @@ int main(int argc, char **argv)
 		for (int i = 0; i < 3 * width * height; ++i)
 			image->buffer[i] -= 0.5f;
 	}
+	float *input = malloc(sizeof(float) * pixels);
+	float *output = malloc(sizeof(float) * 3 * pixels);
+	for (int j = 0; j < 3; ++j) {
+		if (!quant[j])
+			continue;
+		copy(input, image->buffer+j, width, height, length, 3);
+		transformation(output + pixels * j, input, length, lmin, wavelet);
+	}
+	delete_image(image);
+	free(input);
 	struct bits_writer *bits = bits_writer(argv[2], capacity);
 	if (!bits)
 		return 1;
@@ -99,14 +109,6 @@ int main(int argc, char **argv)
 	put_vli(bits, lmin);
 	for (int i = 0; i < 3; ++i)
 		put_vli(bits, quant[i]);
-	float *input = malloc(sizeof(float) * pixels);
-	float *output = malloc(sizeof(float) * 3 * pixels);
-	for (int j = 0; j < 3; ++j) {
-		if (!quant[j])
-			continue;
-		copy(input, image->buffer+j, width, height, length, 3);
-		transformation(output + pixels * j, input, length, lmin, wavelet);
-	}
 	int qadj_max = 0;
 	while ((!quant[0] || quant[0] >> qadj_max) &&
 		(!quant[1] || quant[1] >> qadj_max) &&
