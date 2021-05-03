@@ -48,15 +48,12 @@ void copy(float *output, float *input, int width, int height, int length, int st
 		for (int i = 0; i < width; ++i)
 			sum += input[(width*j+i)*stride];
 	float avg = sum / (width * height);
-	int xoff = 0, yoff = 0;
-	if (0) {
-		xoff = (length - width) / 2;
-		yoff = (length - height) / 2;
-	}
-	for (int j = 0; j < length; ++j)
+	for (int j = 0, w1 = width-1, h1 = height-1, k = 8; j < length; ++j)
 		for (int i = 0; i < length; ++i)
-			if (j >= yoff && j < height+yoff && i >= xoff && i < width+xoff)
-				output[length*j+i] = input[(width*(j-yoff)+i-xoff)*stride];
+			if (j < height && i < width)
+				output[length*j+i] = input[(width*j+i)*stride];
+			else if (j < height+k && i < width+k)
+				output[length*j+i] = input[(width*(h1-abs(h1-j%(2*h1)))+w1-abs(w1-i%(2*w1)))*stride];
 			else
 				output[length*j+i] = avg;
 }
