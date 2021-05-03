@@ -43,19 +43,9 @@ void copy(float *output, float *input, int width, int height, int length, int st
 			output[i] = input[i*stride];
 		return;
 	}
-	float sum = 0.f;
-	for (int j = 0; j < height; ++j)
-		for (int i = 0; i < width; ++i)
-			sum += input[(width*j+i)*stride];
-	float avg = sum / (width * height);
-	for (int j = 0, w1 = width-1, h1 = height-1, k = 8; j < length; ++j)
+	for (int j = 0, w1 = width-1, h1 = height-1; j < length; ++j)
 		for (int i = 0; i < length; ++i)
-			if (j < height && i < width)
-				output[length*j+i] = input[(width*j+i)*stride];
-			else if (j < height+k && i < width+k)
-				output[length*j+i] = input[(width*(h1-abs(h1-j%(2*h1)))+w1-abs(w1-i%(2*w1)))*stride];
-			else
-				output[length*j+i] = avg;
+			output[length*j+i] = input[(width*(h1-abs(h1-j%(2*h1)))+w1-abs(w1-i%(2*w1)))*stride];
 }
 
 int main(int argc, char **argv)
