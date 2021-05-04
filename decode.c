@@ -39,6 +39,11 @@ void quantization(float *values, int length, int len, int xoff, int yoff, int qu
 	}
 }
 
+float flerpf(float x, float a, float b)
+{
+	return (1.f - x) * a + x * b;
+}
+
 void copy(float *output, float *input, int width, int height, int length, int col, int row, int cols, int rows, int stride)
 {
 	if (width == length && height == length) {
@@ -50,9 +55,12 @@ void copy(float *output, float *input, int width, int height, int length, int co
 	int ylen = height / rows;
 	int xoff = (length - xlen) / 2;
 	int yoff = (length - ylen) / 2;
-	for (int j = yoff, y = ylen*row; j < length && y < height; ++j, ++y)
-		for (int i = xoff, x = xlen*col; i < length && x < width; ++i, ++x)
-			output[(width*y+x)*stride] = input[length*j+i];
+	for (int j = !row*yoff, y = ylen*row-!!row*yoff; j < length && y < height; ++j, ++y)
+		for (int i = !col*xoff, x = xlen*col-!!col*xoff; i < length && x < width; ++i, ++x)
+			if ((!col || i >= 2*xoff) && (!row || j >= 2*yoff))
+				output[(width*y+x)*stride] = input[length*j+i];
+			else
+				output[(width*y+x)*stride] = flerpf(fclampf(i/(2.f*xoff), 0.f, 1.f) * fclampf(j/(2.f*yoff), 0.f, 1.f), output[(width*y+x)*stride], input[length*j+i]);
 }
 
 int main(int argc, char **argv)
