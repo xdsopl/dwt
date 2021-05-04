@@ -36,25 +36,21 @@ void quantization(float *values, int length, int len, int xoff, int yoff, int qu
 	}
 }
 
-void copy(float *output, float *input, int width, int height, int length, int col, int row, int stride)
+void copy(float *output, float *input, int width, int height, int length, int col, int row, int cols, int rows, int stride)
 {
 	if (width == length && height == length) {
 		for (int i = 0; i < length * length; ++i)
 			output[i] = input[i*stride];
 		return;
 	}
-	int cnt = 0;
-	float sum = 0.f;
-	for (int j = 0, y = length*row; j < length && y < height; ++j, ++y)
-		for (int i = 0, x = length*col; i < length && x < width; ++i, ++x, ++cnt)
-			sum += input[(width*y+x)*stride];
-	float avg = sum / cnt;
-	for (int j = 0, y = length*row; j < length; ++j, ++y)
-		for (int i = 0, x = length*col; i < length; ++i, ++x)
-			if (y < height && x < width)
-				output[length*j+i] = input[(width*y+x)*stride];
-			else
-				output[length*j+i] = avg;
+	int xlen = width / cols;
+	int ylen = height / rows;
+	int xoff = (length - xlen) / 2;
+	int yoff = (length - ylen) / 2;
+	int w1 = width - 1, h1 = height - 1;
+	for (int j = 0, y = ylen*row+2*h1-yoff; j < length; ++j, ++y)
+		for (int i = 0, x = xlen*col+2*w1-xoff; i < length; ++i, ++x)
+			output[length*j+i] = input[(width*(h1-abs(h1-y%(2*h1)))+w1-abs(w1-x%(2*w1)))*stride];
 }
 
 int main(int argc, char **argv)
@@ -110,7 +106,7 @@ int main(int argc, char **argv)
 		for (int row = 0; row < rows; ++row) {
 			for (int col = 0; col < cols; ++col) {
 				float *values = output + pixels * ((cols * row + col) * 3 + j);
-				copy(input, image->buffer+j, width, height, length, col, row, 3);
+				copy(input, image->buffer+j, width, height, length, col, row, cols, rows, 3);
 				transformation(values, input, length, lmin, wavelet);
 			}
 		}

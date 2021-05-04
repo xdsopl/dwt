@@ -39,15 +39,19 @@ void quantization(float *values, int length, int len, int xoff, int yoff, int qu
 	}
 }
 
-void copy(float *output, float *input, int width, int height, int length, int col, int row, int stride)
+void copy(float *output, float *input, int width, int height, int length, int col, int row, int cols, int rows, int stride)
 {
 	if (width == length && height == length) {
 		for (int i = 0; i < length * length; ++i)
 			output[i*stride] = input[i];
 		return;
 	}
-	for (int j = 0, y = length*row; j < length && y < height; ++j, ++y)
-		for (int i = 0, x = length*col; i < length && x < width; ++i, ++x)
+	int xlen = width / cols;
+	int ylen = height / rows;
+	int xoff = (length - xlen) / 2;
+	int yoff = (length - ylen) / 2;
+	for (int j = yoff, y = ylen*row; j < length && y < height; ++j, ++y)
+		for (int i = xoff, x = xlen*col; i < length && x < width; ++i, ++x)
 			output[(width*y+x)*stride] = input[length*j+i];
 }
 
@@ -144,7 +148,7 @@ int main(int argc, char **argv)
 			for (int col = 0; col < cols; ++col) {
 				float *values = input + pixels * ((cols * row + col) * 3 + j);
 				transformation(output, values, length, lmin, wavelet);
-				copy(image->buffer+j, output, width, height, length, col, row, 3);
+				copy(image->buffer+j, output, width, height, length, col, row, cols, rows, 3);
 			}
 		}
 	}
