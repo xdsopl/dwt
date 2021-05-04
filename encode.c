@@ -53,6 +53,11 @@ void copy(float *output, float *input, int width, int height, int length, int co
 			output[length*j+i] = input[(width*(h1-abs(h1-y%(2*h1)))+w1-abs(w1-x%(2*w1)))*stride];
 }
 
+int pow2(int N)
+{
+	return !(N & (N - 1));
+}
+
 int main(int argc, char **argv)
 {
 	if (argc != 3 && argc != 6 && argc != 7 && argc != 8 && argc != 9 && argc != 10) {
@@ -65,14 +70,21 @@ int main(int argc, char **argv)
 	int width = image->width;
 	int height = image->height;
 	int lmin = 8;
-	int length = lmin;
-	while (length < width && length < height)
-		length *= 2;
-	if (length != width || length != height)
-		length /= 2;
+	int length = width;
+	int cols = 1;
+	int rows = 1;
+	if (width != height || !pow2(width)) {
+		length = lmin;
+		while (length < width && length < height)
+			length *= 2;
+		cols = (width + length - 1) / length;
+		rows = (height + length - 1) / length;
+		while (cols > 1 && length-width/cols < length/10)
+			++cols;
+		while (rows > 1 && length-height/rows < length/10)
+			++rows;
+	}
 	int pixels = length * length;
-	int rows = (height + length - 1) / length;
-	int cols = (width + length - 1) / length;
 	fprintf(stderr, "%d cols and %d rows of len %d\n", cols, rows, length);
 	int quant[3] = { 128, 32, 32 };
 	if (argc >= 6)
