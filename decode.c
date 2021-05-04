@@ -39,21 +39,16 @@ void quantization(float *values, int length, int len, int xoff, int yoff, int qu
 	}
 }
 
-void copy(float *output, float *input, int width, int height, int length, int stride)
+void copy(float *output, float *input, int width, int height, int length, int col, int row, int stride)
 {
 	if (width == length && height == length) {
 		for (int i = 0; i < length * length; ++i)
 			output[i*stride] = input[i];
 		return;
 	}
-	int xoff = 0, yoff = 0;
-	if (0) {
-		xoff = (length - width) / 2;
-		yoff = (length - height) / 2;
-	}
-	for (int j = 0; j < height; ++j)
-		for (int i = 0; i < width; ++i)
-			output[(width*j+i)*stride] = input[length*(yoff+j)+xoff+i];
+	for (int j = 0, y = length*row; j < length && y < height; ++j, ++y)
+		for (int i = 0, x = length*col; i < length && x < width; ++i, ++x)
+			output[(width*y+x)*stride] = input[length*j+i];
 }
 
 int main(int argc, char **argv)
@@ -75,19 +70,30 @@ int main(int argc, char **argv)
 	for (int i = 0; i < 3; ++i)
 		quant[i] = get_vli(bits);
 	int length = lmin;
-	while (length < width || length < height)
+	while (length < width && length < height)
 		length *= 2;
+	if (length != width || length != height)
+		length /= 2;
 	int pixels = length * length;
-	float *input = malloc(sizeof(float) * 3 * pixels);
+	int rows = (height + length - 1) / length;
+	int cols = (width + length - 1) / length;
+	float *input = malloc(sizeof(float) * 3 * pixels * rows * cols);
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		if (!get_bit(bits)) {
 			int factor = length / len;
 			width /= factor;
 			height /= factor;
+			float *tmp = malloc(sizeof(float) * 3 * len * len * rows * cols);
 			for (int j = 0; j < 3; ++j)
-				for (int y = 0; y < len; ++y)
-					for (int x = 0; x < len; ++x)
-						input[len*(len*j+y)+x] = input[length*(length*j+y)+x] / factor;
+				if (quant[j])
+					for (int row = 0; row < rows; ++row)
+						for (int col = 0; col < cols; ++col)
+							for (int y = 0; y < len; ++y)
+								for (int x = 0; x < len; ++x)
+									tmp[len*(len*((cols*row+col)*3+j)+y)+x] =
+										input[length*(length*((cols*row+col)*3+j)+y)+x] / factor;
+			free(input);
+			input = tmp;
 			length = len;
 			pixels = length * length;
 			break;
@@ -96,27 +102,31 @@ int main(int argc, char **argv)
 		for (int j = 0; j < 3; ++j) {
 			if (!quant[j])
 				continue;
-			float *values = input + pixels * j;
-			for (int yoff = 0; yoff < len*2; yoff += len) {
-				for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
-					for (int i = 0; i < len*len; ++i) {
-						struct position pos = hilbert(len, i);
-						int idx = length * (yoff + pos.y) + xoff + pos.x;
-						int val = get_vli(bits);
-						if (val) {
-							if (get_bit(bits))
-								val = -val;
-						} else {
-							int cnt = get_vli(bits);
-							for (int k = 0; k < cnt; ++k) {
-								values[idx] = 0;
-								struct position pos = hilbert(len, ++i);
-								idx = length * (yoff + pos.y) + xoff + pos.x;
+			for (int row = 0; row < rows; ++row) {
+				for (int col = 0; col < cols; ++col) {
+					float *values = input + pixels * ((cols * row + col) * 3 + j);
+					for (int yoff = 0; yoff < len*2; yoff += len) {
+						for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
+							for (int i = 0; i < len*len; ++i) {
+								struct position pos = hilbert(len, i);
+								int idx = length * (yoff + pos.y) + xoff + pos.x;
+								int val = get_vli(bits);
+								if (val) {
+									if (get_bit(bits))
+										val = -val;
+								} else {
+									int cnt = get_vli(bits);
+									for (int k = 0; k < cnt; ++k) {
+										values[idx] = 0;
+										struct position pos = hilbert(len, ++i);
+										idx = length * (yoff + pos.y) + xoff + pos.x;
+									}
+								}
+								values[idx] = val;
 							}
+							quantization(values, length, len, xoff, yoff, quant[j] >> qadj, (xoff || yoff) && rounding);
 						}
-						values[idx] = val;
 					}
-					quantization(values, length, len, xoff, yoff, quant[j] >> qadj, (xoff || yoff) && rounding);
 				}
 			}
 		}
@@ -130,8 +140,13 @@ int main(int argc, char **argv)
 				image->buffer[3*i+j] = 0;
 			continue;
 		}
-		transformation(output, input + pixels * j, length, lmin, wavelet);
-		copy(image->buffer+j, output, width, height, length, 3);
+		for (int row = 0; row < rows; ++row) {
+			for (int col = 0; col < cols; ++col) {
+				float *values = input + pixels * ((cols * row + col) * 3 + j);
+				transformation(output, values, length, lmin, wavelet);
+				copy(image->buffer+j, output, width, height, length, col, row, 3);
+			}
+		}
 	}
 	if (mode) {
 		for (int i = 0; i < width * height; ++i)

@@ -36,27 +36,23 @@ void quantization(float *values, int length, int len, int xoff, int yoff, int qu
 	}
 }
 
-void copy(float *output, float *input, int width, int height, int length, int stride)
+void copy(float *output, float *input, int width, int height, int length, int col, int row, int stride)
 {
 	if (width == length && height == length) {
 		for (int i = 0; i < length * length; ++i)
 			output[i] = input[i*stride];
 		return;
 	}
+	int cnt = 0;
 	float sum = 0.f;
-	for (int j = 0; j < height; ++j)
-		for (int i = 0; i < width; ++i)
-			sum += input[(width*j+i)*stride];
-	float avg = sum / (width * height);
-	int xoff = 0, yoff = 0;
-	if (0) {
-		xoff = (length - width) / 2;
-		yoff = (length - height) / 2;
-	}
-	for (int j = 0; j < length; ++j)
-		for (int i = 0; i < length; ++i)
-			if (j >= yoff && j < height+yoff && i >= xoff && i < width+xoff)
-				output[length*j+i] = input[(width*(j-yoff)+i-xoff)*stride];
+	for (int j = 0, y = length*row; j < length && y < height; ++j, ++y)
+		for (int i = 0, x = length*col; i < length && x < width; ++i, ++x, ++cnt)
+			sum += input[(width*y+x)*stride];
+	float avg = sum / cnt;
+	for (int j = 0, y = length*row; j < length; ++j, ++y)
+		for (int i = 0, x = length*col; i < length; ++i, ++x)
+			if (y < height && x < width)
+				output[length*j+i] = input[(width*y+x)*stride];
 			else
 				output[length*j+i] = avg;
 }
@@ -74,9 +70,14 @@ int main(int argc, char **argv)
 	int height = image->height;
 	int lmin = 8;
 	int length = lmin;
-	while (length < width || length < height)
+	while (length < width && length < height)
 		length *= 2;
+	if (length != width || length != height)
+		length /= 2;
 	int pixels = length * length;
+	int rows = (height + length - 1) / length;
+	int cols = (width + length - 1) / length;
+	fprintf(stderr, "%d cols and %d rows of len %d\n", cols, rows, length);
 	int quant[3] = { 128, 32, 32 };
 	if (argc >= 6)
 		for (int i = 0; i < 3; ++i)
@@ -102,12 +103,17 @@ int main(int argc, char **argv)
 			image->buffer[i] -= 0.5f;
 	}
 	float *input = malloc(sizeof(float) * pixels);
-	float *output = malloc(sizeof(float) * 3 * pixels);
+	float *output = malloc(sizeof(float) * 3 * pixels * rows * cols);
 	for (int j = 0; j < 3; ++j) {
 		if (!quant[j])
 			continue;
-		copy(input, image->buffer+j, width, height, length, 3);
-		transformation(output + pixels * j, input, length, lmin, wavelet);
+		for (int row = 0; row < rows; ++row) {
+			for (int col = 0; col < cols; ++col) {
+				float *values = output + pixels * ((cols * row + col) * 3 + j);
+				copy(input, image->buffer+j, width, height, length, col, row, 3);
+				transformation(values, input, length, lmin, wavelet);
+			}
+		}
 	}
 	delete_image(image);
 	free(input);
@@ -137,27 +143,31 @@ int main(int argc, char **argv)
 		for (int j = 0; j < 3; ++j) {
 			if (!quant[j])
 				continue;
-			float *values = output + pixels * j;
-			for (int yoff = 0; yoff < len*2; yoff += len) {
-				for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
-					quantization(values, length, len, xoff, yoff, quant[j] >> qadj, (xoff || yoff) && rounding);
-					int last = 0;
-					for (int i = 0; i < len*len; ++i) {
-						struct position pos = hilbert(len, i);
-						int idx = length * (yoff + pos.y) + xoff + pos.x;
-						if (values[idx]) {
-							if (i - last) {
-								put_vli(bits, 0);
-								put_vli(bits, i - last - 1);
+			for (int row = 0; row < rows; ++row) {
+				for (int col = 0; col < cols; ++col) {
+					float *values = output + pixels * ((cols * row + col) * 3 + j);
+					for (int yoff = 0; yoff < len*2; yoff += len) {
+						for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
+							quantization(values, length, len, xoff, yoff, quant[j] >> qadj, (xoff || yoff) && rounding);
+							int last = 0;
+							for (int i = 0; i < len*len; ++i) {
+								struct position pos = hilbert(len, i);
+								int idx = length * (yoff + pos.y) + xoff + pos.x;
+								if (values[idx]) {
+									if (i - last) {
+										put_vli(bits, 0);
+										put_vli(bits, i - last - 1);
+									}
+									last = i + 1;
+									put_vli(bits, fabsf(values[idx]));
+									put_bit(bits, values[idx] < 0.f);
+								}
 							}
-							last = i + 1;
-							put_vli(bits, fabsf(values[idx]));
-							put_bit(bits, values[idx] < 0.f);
+							if (last < len*len) {
+								put_vli(bits, 0);
+								put_vli(bits, len*len - last - 1);
+							}
 						}
-					}
-					if (last < len*len) {
-						put_vli(bits, 0);
-						put_vli(bits, len*len - last - 1);
 					}
 				}
 			}
