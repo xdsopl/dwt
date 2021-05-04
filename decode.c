@@ -46,14 +46,11 @@ void copy(float *output, float *input, int width, int height, int length, int st
 			output[i*stride] = input[i];
 		return;
 	}
-	int xoff = 0, yoff = 0;
-	if (1) {
-		xoff = (length - width) / 2;
-		yoff = (length - height) / 2;
-	}
-	for (int j = 0; j < height; ++j)
-		for (int i = 0; i < width; ++i)
-			output[(width*j+i)*stride] = input[length*(j+yoff)+i+xoff];
+	int xoff = (length - width) / 2;
+	int yoff = (length - height) / 2;
+	for (int j = 0, y = yoff; j < height; ++j, ++y)
+		for (int i = 0, x = xoff; i < width; ++i, ++x)
+			output[(width*j+i)*stride] = input[length*y+x];
 }
 
 int main(int argc, char **argv)
