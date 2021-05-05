@@ -135,8 +135,6 @@ int main(int argc, char **argv)
 	int qadj_max = 0;
 	while (quant[0] >> qadj_max && quant[1] >> qadj_max && quant[2] >> qadj_max)
 		++qadj_max;
-	if (qadj_max > 0)
-		--qadj_max;
 	int qadj = 0;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		for (int j = 0; j < 3; ++j) {

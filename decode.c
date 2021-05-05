@@ -33,7 +33,10 @@ void quantization(float *values, int length, int len, int xoff, int yoff, int qu
 				else if (v > 0.f)
 					v += bias;
 			}
-			v /= quant;
+			if (quant)
+				v /= quant;
+			else
+				v = 0;
 			values[idx] = v;
 		}
 	}
