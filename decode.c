@@ -88,6 +88,8 @@ int main(int argc, char **argv)
 		quant[i] = get_vli(bits);
 	int pixels = length * length;
 	float *input = malloc(sizeof(float) * 3 * pixels * rows * cols);
+	for (int i = 0; i < 3 * pixels * rows * cols; ++i)
+		input[i] = 0;
 	int qadj = 0;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		for (int j = 0; j < 3; ++j) {
@@ -121,15 +123,10 @@ int main(int argc, char **argv)
 								if (val) {
 									if (get_bit(bits))
 										val = -val;
+									values[idx] = val;
 								} else {
-									int cnt = get_vli(bits);
-									for (int k = 0; k < cnt; ++k) {
-										values[idx] = 0;
-										struct position pos = hilbert(len, ++i);
-										idx = length * (yoff + pos.y) + xoff + pos.x;
-									}
+									i += get_vli(bits);
 								}
-								values[idx] = val;
 							}
 							quantization(values, length, len, xoff, yoff, quant[j] >> qadj, (xoff || yoff) && rounding);
 						}
