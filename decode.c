@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 			input = tmp;
 			length = len;
 			pixels = length * length;
-			goto end;
+			break;
 		}
 		for (int j = 0; j < 3; ++j) {
 			if (!get_bit(bits))
@@ -138,7 +138,6 @@ int main(int argc, char **argv)
 		}
 		qadj = get_vli(bits);
 	}
-end:
 	close_reader(bits);
 	struct image *image = new_image(argv[2], width, height);
 	float *output = malloc(sizeof(float) * pixels);
