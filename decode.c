@@ -63,11 +63,6 @@ void copy(float *output, float *input, int width, int height, int length, int co
 				output[(width*y+x)*stride] = flerpf(fclampf(i/(2.f*xoff), 0.f, 1.f) * fclampf(j/(2.f*yoff), 0.f, 1.f), output[(width*y+x)*stride], input[length*j+i]);
 }
 
-int pow2(int N)
-{
-	return !(N & (N - 1));
-}
-
 int main(int argc, char **argv)
 {
 	if (argc != 3) {
@@ -82,24 +77,13 @@ int main(int argc, char **argv)
 	int rounding = get_bit(bits);
 	int width = get_vli(bits);
 	int height = get_vli(bits);
+	int length = get_vli(bits);
 	int lmin = get_vli(bits);
+	int cols = get_vli(bits);
+	int rows = get_vli(bits);
 	int quant[3];
 	for (int i = 0; i < 3; ++i)
 		quant[i] = get_vli(bits);
-	int length = width;
-	int cols = 1;
-	int rows = 1;
-	if (width != height || !pow2(width)) {
-		length = lmin;
-		while (length < width && length < height)
-			length *= 2;
-		cols = (width + length - 1) / length;
-		rows = (height + length - 1) / length;
-		while (cols > 1 && length-width/cols < length/10)
-			++cols;
-		while (rows > 1 && length-height/rows < length/10)
-			++rows;
-	}
 	int pixels = length * length;
 	float *input = malloc(sizeof(float) * 3 * pixels * rows * cols);
 	for (int len = lmin/2; len <= length/2; len *= 2) {

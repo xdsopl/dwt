@@ -133,7 +133,10 @@ int main(int argc, char **argv)
 	put_bit(bits, rounding);
 	put_vli(bits, width);
 	put_vli(bits, height);
+	put_vli(bits, length);
 	put_vli(bits, lmin);
+	put_vli(bits, cols);
+	put_vli(bits, rows);
 	for (int i = 0; i < 3; ++i)
 		put_vli(bits, quant[i]);
 	int qadj_max = 0;
