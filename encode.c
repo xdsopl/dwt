@@ -131,6 +131,7 @@ int main(int argc, char **argv)
 	put_vli(bits, rows);
 	for (int i = 0; i < 3; ++i)
 		put_vli(bits, quant[i]);
+	bits_flush(bits);
 	int qadj_max = 0;
 	while (quant[0] >> qadj_max && quant[1] >> qadj_max && quant[2] >> qadj_max)
 		++qadj_max;
@@ -138,10 +139,8 @@ int main(int argc, char **argv)
 		--qadj_max;
 	int qadj = 0;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
-		bits_flush(bits);
-		put_bit(bits, 1);
-		put_vli(bits, qadj);
 		for (int j = 0; j < 3; ++j) {
+			put_bit(bits, 1);
 			for (int row = 0; row < rows; ++row) {
 				for (int col = 0; col < cols; ++col) {
 					float *values = output + pixels * ((cols * row + col) * 3 + j);
@@ -170,18 +169,25 @@ int main(int argc, char **argv)
 					}
 				}
 			}
+			if (!j) {
+				int cnt = bits_count(bits);
+				if (cnt >= capacity) {
+					bits_discard(bits);
+					fprintf(stderr, "%d bits over capacity, discarding %.1f%% of pixels\n", cnt-capacity+1, (100.f*(length*length-len*len))/(length*length));
+					goto end;
+				} else {
+					bits_flush(bits);
+				}
+			}
 		}
 		int cnt = bits_count(bits);
-		if (cnt >= capacity) {
-			bits_discard(bits);
-			fprintf(stderr, "%d bits over capacity, discarding %.1f%% of pixels\n", cnt-capacity+1, (100.f*(length*length-len*len))/(length*length));
-			break;
-		}
 		qadj = (cnt * (length / len) - capacity) / capacity;
 		qadj = qadj < 0 ? 0 : qadj > qadj_max ? qadj_max : qadj;
+		put_vli(bits, qadj);
 		if (qadj && len < length/4)
 			fprintf(stderr, "adjusting quantization by %d in len %d\n", qadj, 2*len);
 	}
+end:
 	put_bit(bits, 0);
 	fprintf(stderr, "%d bits encoded\n", bits_count(bits));
 	close_writer(bits);
