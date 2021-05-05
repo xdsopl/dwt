@@ -90,6 +90,9 @@ int main(int argc, char **argv)
 	if (argc >= 6)
 		for (int i = 0; i < 3; ++i)
 			quant[i] = atoi(argv[3+i]);
+	for (int i = 0; i < 3; ++i)
+		if (!quant[i])
+			return 1;
 	int wavelet = 1;
 	if (argc >= 7)
 		wavelet = atoi(argv[6]);
@@ -105,8 +108,6 @@ int main(int argc, char **argv)
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * 3 * pixels * rows * cols);
 	for (int j = 0; j < 3; ++j) {
-		if (!quant[j])
-			continue;
 		for (int row = 0; row < rows; ++row) {
 			for (int col = 0; col < cols; ++col) {
 				float *values = output + pixels * ((cols * row + col) * 3 + j);
@@ -131,10 +132,8 @@ int main(int argc, char **argv)
 	for (int i = 0; i < 3; ++i)
 		put_vli(bits, quant[i]);
 	int qadj_max = 0;
-	while ((!quant[0] || quant[0] >> qadj_max) &&
-		(!quant[1] || quant[1] >> qadj_max) &&
-		(!quant[2] || quant[2] >> qadj_max))
-			++qadj_max;
+	while (quant[0] >> qadj_max && quant[1] >> qadj_max && quant[2] >> qadj_max)
+		++qadj_max;
 	if (qadj_max > 0)
 		--qadj_max;
 	int qadj = 0;
@@ -143,8 +142,6 @@ int main(int argc, char **argv)
 		put_bit(bits, 1);
 		put_vli(bits, qadj);
 		for (int j = 0; j < 3; ++j) {
-			if (!quant[j])
-				continue;
 			for (int row = 0; row < rows; ++row) {
 				for (int col = 0; col < cols; ++col) {
 					float *values = output + pixels * ((cols * row + col) * 3 + j);

@@ -92,13 +92,12 @@ int main(int argc, char **argv)
 			height /= factor;
 			float *tmp = malloc(sizeof(float) * 3 * len * len * rows * cols);
 			for (int j = 0; j < 3; ++j)
-				if (quant[j])
-					for (int row = 0; row < rows; ++row)
-						for (int col = 0; col < cols; ++col)
-							for (int y = 0; y < len; ++y)
-								for (int x = 0; x < len; ++x)
-									tmp[len*(len*((cols*row+col)*3+j)+y)+x] =
-										input[length*(length*((cols*row+col)*3+j)+y)+x] / factor;
+				for (int row = 0; row < rows; ++row)
+					for (int col = 0; col < cols; ++col)
+						for (int y = 0; y < len; ++y)
+							for (int x = 0; x < len; ++x)
+								tmp[len*(len*((cols*row+col)*3+j)+y)+x] =
+									input[length*(length*((cols*row+col)*3+j)+y)+x] / factor;
 			free(input);
 			input = tmp;
 			length = len;
@@ -107,8 +106,6 @@ int main(int argc, char **argv)
 		}
 		int qadj = get_vli(bits);
 		for (int j = 0; j < 3; ++j) {
-			if (!quant[j])
-				continue;
 			for (int row = 0; row < rows; ++row) {
 				for (int col = 0; col < cols; ++col) {
 					float *values = input + pixels * ((cols * row + col) * 3 + j);
@@ -142,11 +139,6 @@ int main(int argc, char **argv)
 	struct image *image = new_image(argv[2], width, height);
 	float *output = malloc(sizeof(float) * pixels);
 	for (int j = 0; j < 3; ++j) {
-		if (!quant[j]) {
-			for (int i = 0; i < pixels; ++i)
-				image->buffer[3*i+j] = 0;
-			continue;
-		}
 		for (int row = 0; row < rows; ++row) {
 			for (int col = 0; col < cols; ++col) {
 				float *values = input + pixels * ((cols * row + col) * 3 + j);
