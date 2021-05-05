@@ -137,7 +137,12 @@ int main(int argc, char **argv)
 		++qadj_max;
 	int qadj = 0;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
+		put_bit(bits, 1);
 		for (int j = 0; j < 3; ++j) {
+			if (quant[j] >> qadj == 0) {
+				put_bit(bits, 0);
+				continue;
+			}
 			put_bit(bits, 1);
 			for (int row = 0; row < rows; ++row) {
 				for (int col = 0; col < cols; ++col) {
@@ -171,6 +176,9 @@ int main(int argc, char **argv)
 				int cnt = bits_count(bits);
 				if (cnt >= capacity) {
 					bits_discard(bits);
+					put_bit(bits, 0);
+					put_bit(bits, 0);
+					put_bit(bits, 0);
 					fprintf(stderr, "%d bits over capacity, discarding %.1f%% of pixels\n", cnt-capacity+1, (100.f*(length*length-len*len))/(length*length));
 					goto end;
 				} else {
@@ -186,7 +194,6 @@ int main(int argc, char **argv)
 			fprintf(stderr, "adjusting quantization by %d in len %d\n", qadj, 2*len);
 	}
 end:
-	put_bit(bits, 0);
 	fprintf(stderr, "%d bits encoded\n", bits_count(bits));
 	close_writer(bits);
 	return 0;

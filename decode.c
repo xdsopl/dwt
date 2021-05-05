@@ -92,25 +92,27 @@ int main(int argc, char **argv)
 		input[i] = 0;
 	int qadj = 0;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
+		if (!get_bit(bits)) {
+			int factor = length / len;
+			width /= factor;
+			height /= factor;
+			float *tmp = malloc(sizeof(float) * 3 * len * len * rows * cols);
+			for (int j = 0; j < 3; ++j)
+				for (int row = 0; row < rows; ++row)
+					for (int col = 0; col < cols; ++col)
+						for (int y = 0; y < len; ++y)
+							for (int x = 0; x < len; ++x)
+								tmp[len*(len*((cols*row+col)*3+j)+y)+x] =
+									input[length*(length*((cols*row+col)*3+j)+y)+x] / factor;
+			free(input);
+			input = tmp;
+			length = len;
+			pixels = length * length;
+			goto end;
+		}
 		for (int j = 0; j < 3; ++j) {
-			if (!get_bit(bits)) {
-				int factor = length / len;
-				width /= factor;
-				height /= factor;
-				float *tmp = malloc(sizeof(float) * 3 * len * len * rows * cols);
-				for (int j = 0; j < 3; ++j)
-					for (int row = 0; row < rows; ++row)
-						for (int col = 0; col < cols; ++col)
-							for (int y = 0; y < len; ++y)
-								for (int x = 0; x < len; ++x)
-									tmp[len*(len*((cols*row+col)*3+j)+y)+x] =
-										input[length*(length*((cols*row+col)*3+j)+y)+x] / factor;
-				free(input);
-				input = tmp;
-				length = len;
-				pixels = length * length;
-				goto end;
-			}
+			if (!get_bit(bits))
+				continue;
 			for (int row = 0; row < rows; ++row) {
 				for (int col = 0; col < cols; ++col) {
 					float *values = input + pixels * ((cols * row + col) * 3 + j);
