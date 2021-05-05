@@ -72,7 +72,6 @@ int main(int argc, char **argv)
 	struct bits_reader *bits = bits_reader(argv[1]);
 	if (!bits)
 		return 1;
-	int mode = get_bit(bits);
 	int wavelet = get_bit(bits);
 	int rounding = get_bit(bits);
 	int width = get_vli(bits);
@@ -156,14 +155,9 @@ int main(int argc, char **argv)
 			}
 		}
 	}
-	if (mode) {
-		for (int i = 0; i < width * height; ++i)
-			image->buffer[3*i] += 0.5f;
-		rgb_image(image);
-	} else {
-		for (int i = 0; i < 3 * width * height; ++i)
-			image->buffer[i] += 0.5f;
-	}
+	for (int i = 0; i < width * height; ++i)
+		image->buffer[3*i] += 0.5f;
+	rgb_image(image);
 	if (!write_ppm(image))
 		return 1;
 	return 0;
