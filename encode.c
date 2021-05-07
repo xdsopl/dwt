@@ -53,6 +53,28 @@ void copy(float *output, float *input, int width, int height, int length, int co
 			output[length*j+i] = input[(width*(h1-abs(h1-y%(2*h1)))+w1-abs(w1-x%(2*w1)))*stride];
 }
 
+void encode(struct bits_writer *bits, float *values, int length, int len, int xoff, int yoff)
+{
+	int last = 0;
+	for (int i = 0; i < len*len; ++i) {
+		struct position pos = hilbert(len, i);
+		int idx = length * (yoff + pos.y) + xoff + pos.x;
+		if (values[idx]) {
+			if (i - last) {
+				put_vli(bits, 0);
+				put_vli(bits, i - last - 1);
+			}
+			last = i + 1;
+			put_vli(bits, fabsf(values[idx]));
+			put_bit(bits, values[idx] < 0.f);
+		}
+	}
+	if (last < len*len) {
+		put_vli(bits, 0);
+		put_vli(bits, len*len - last - 1);
+	}
+}
+
 int pow2(int N)
 {
 	return !(N & (N - 1));
@@ -150,24 +172,7 @@ int main(int argc, char **argv)
 					for (int yoff = 0; yoff < len*2; yoff += len) {
 						for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
 							quantization(values, length, len, xoff, yoff, quant[j] >> qadj, (xoff || yoff) && rounding);
-							int last = 0;
-							for (int i = 0; i < len*len; ++i) {
-								struct position pos = hilbert(len, i);
-								int idx = length * (yoff + pos.y) + xoff + pos.x;
-								if (values[idx]) {
-									if (i - last) {
-										put_vli(bits, 0);
-										put_vli(bits, i - last - 1);
-									}
-									last = i + 1;
-									put_vli(bits, fabsf(values[idx]));
-									put_bit(bits, values[idx] < 0.f);
-								}
-							}
-							if (last < len*len) {
-								put_vli(bits, 0);
-								put_vli(bits, len*len - last - 1);
-							}
+							encode(bits, values, length, len, xoff, yoff);
 						}
 					}
 				}

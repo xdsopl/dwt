@@ -66,6 +66,22 @@ void copy(float *output, float *input, int width, int height, int length, int co
 				output[(width*y+x)*stride] = flerpf(fclampf(i/(2.f*xoff), 0.f, 1.f) * fclampf(j/(2.f*yoff), 0.f, 1.f), output[(width*y+x)*stride], input[length*j+i]);
 }
 
+void decode(struct bits_reader *bits, float *values, int length, int len, int xoff, int yoff)
+{
+	for (int i = 0; i < len*len; ++i) {
+		struct position pos = hilbert(len, i);
+		int idx = length * (yoff + pos.y) + xoff + pos.x;
+		int val = get_vli(bits);
+		if (val) {
+			if (get_bit(bits))
+				val = -val;
+			values[idx] = val;
+		} else {
+			i += get_vli(bits);
+		}
+	}
+}
+
 int main(int argc, char **argv)
 {
 	if (argc != 3) {
@@ -118,18 +134,7 @@ int main(int argc, char **argv)
 					float *values = input + pixels * ((cols * row + col) * 3 + j);
 					for (int yoff = 0; yoff < len*2; yoff += len) {
 						for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
-							for (int i = 0; i < len*len; ++i) {
-								struct position pos = hilbert(len, i);
-								int idx = length * (yoff + pos.y) + xoff + pos.x;
-								int val = get_vli(bits);
-								if (val) {
-									if (get_bit(bits))
-										val = -val;
-									values[idx] = val;
-								} else {
-									i += get_vli(bits);
-								}
-							}
+							decode(bits, values, length, len, xoff, yoff);
 							quantization(values, length, len, xoff, yoff, quant[j] >> qadj, (xoff || yoff) && rounding);
 						}
 					}
