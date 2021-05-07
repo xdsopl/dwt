@@ -42,7 +42,7 @@ void quantization(float *values, int length, int len, int xoff, int yoff, int qu
 	}
 }
 
-float flerpf(float x, float a, float b)
+float flerpf(float a, float b, float x)
 {
 	return (1.f - x) * a + x * b;
 }
@@ -63,7 +63,7 @@ void copy(float *output, float *input, int width, int height, int length, int co
 			if ((!col || i >= 2*xoff) && (!row || j >= 2*yoff))
 				output[(width*y+x)*stride] = input[length*j+i];
 			else
-				output[(width*y+x)*stride] = flerpf(fclampf(i/(2.f*xoff), 0.f, 1.f) * fclampf(j/(2.f*yoff), 0.f, 1.f), output[(width*y+x)*stride], input[length*j+i]);
+				output[(width*y+x)*stride] = flerpf(output[(width*y+x)*stride], input[length*j+i], fclampf(i/(2.f*xoff), 0.f, 1.f) * fclampf(j/(2.f*yoff), 0.f, 1.f));
 }
 
 void decode(struct bits_reader *bits, float *values, int length, int len, int xoff, int yoff)
