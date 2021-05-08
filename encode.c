@@ -96,15 +96,21 @@ int main(int argc, char **argv)
 	int cols = 1;
 	int rows = 1;
 	if (width != height || !pow2(width)) {
-		length = lmin;
-		while (length < width && length < height)
-			length *= 2;
-		cols = (width + length - 1) / length;
-		rows = (height + length - 1) / length;
-		while (cols > 1 && length-width/cols < length/10)
-			++cols;
-		while (rows > 1 && length-height/rows < length/10)
-			++rows;
+		for (int best = -1, l = lmin; l <= width || l <= height; l *= 2) {
+			int c = (width + l - 1) / l;
+			int r = (height + l - 1) / l;
+			while (c > 1 && (l-lmin/2)*c < width)
+				++c;
+			while (r > 1 && (l-lmin/2)*r < height)
+				++r;
+			int o = l * l * c * r - width * height;
+			if (best < 0 || o < best) {
+				best = o;
+				cols = c;
+				rows = r;
+				length = l;
+			}
+		}
 	}
 	int pixels = length * length;
 	fprintf(stderr, "%d cols and %d rows of len %d\n", cols, rows, length);
