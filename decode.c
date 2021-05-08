@@ -109,6 +109,10 @@ int main(int argc, char **argv)
 	int qadj = 0;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		if (!get_bit(bits)) {
+			if (len == lmin/2) {
+				fprintf(stderr, "no picture\n");
+				return 1;
+			}
 			int factor = length / len;
 			width /= factor;
 			height /= factor;
