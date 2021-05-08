@@ -43,13 +43,13 @@ void copy(float *output, float *input, int width, int height, int length, int co
 			output[i] = input[i*stride];
 		return;
 	}
-	int xlen = width / cols;
-	int ylen = height / rows;
+	int xlen = (width + cols - 1) / cols;
+	int ylen = (height + rows - 1) / rows;
 	int xoff = (length - xlen) / 2;
 	int yoff = (length - ylen) / 2;
 	int w1 = width - 1, h1 = height - 1;
-	for (int j = 0, y = ylen*row+2*h1-yoff; j < length; ++j, ++y)
-		for (int i = 0, x = xlen*col+2*w1-xoff; i < length; ++i, ++x)
+	for (int j = 0, y = (height*row)/rows+2*h1-yoff; j < length; ++j, ++y)
+		for (int i = 0, x = (width*col)/cols+2*w1-xoff; i < length; ++i, ++x)
 			output[length*j+i] = input[(width*(h1-abs(h1-y%(2*h1)))+w1-abs(w1-x%(2*w1)))*stride];
 }
 
