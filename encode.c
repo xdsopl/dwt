@@ -199,7 +199,10 @@ int main(int argc, char **argv)
 		if (qadj && len < length/4)
 			fprintf(stderr, "adjusting quantization by %d in len %d\n", qadj, 2*len);
 	}
-	fprintf(stderr, "%d bits encoded\n", bits_count(bits));
+	int cnt = bits_count(bits);
+	int bytes = (cnt + 7) / 8;
+	int kib = (bytes + 512) / 1024;
+	fprintf(stderr, "%d bits (%d KiB) encoded\n", cnt, kib);
 	close_writer(bits);
 	return 0;
 }
