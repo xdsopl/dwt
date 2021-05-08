@@ -103,6 +103,8 @@ int main(int argc, char **argv)
 				++c;
 			while (r > 1 && (l-lmin/2)*r < height)
 				++r;
+			if ((width < height && c > 3) || r > 3)
+				continue;
 			int o = l * l * c * r - width * height;
 			if (best < 0 || o < best) {
 				best = o;
