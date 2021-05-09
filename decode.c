@@ -82,6 +82,18 @@ void decode(struct bits_reader *bits, float *values, int length, int len, int xo
 	}
 }
 
+void decode_root(struct bits_reader *bits, float *values, int length, int len)
+{
+	for (int j = 0; j < len; ++j) {
+		for (int i = 0; i < len; ++i) {
+			int val = get_vli(bits);
+			if (val && get_bit(bits))
+				val = -val;
+			values[length*j+i] = val;
+		}
+	}
+}
+
 int main(int argc, char **argv)
 {
 	if (argc != 3) {
@@ -109,7 +121,7 @@ int main(int argc, char **argv)
 		for (int row = 0; row < rows; ++row) {
 			for (int col = 0; col < cols; ++col) {
 				float *values = input + pixels * ((cols * row + col) * 3 + chan);
-				decode(bits, values, length, lmin/2, 0, 0);
+				decode_root(bits, values, length, lmin/2);
 				quantization(values, length, lmin/2, 0, 0, quant[chan], 0);
 			}
 		}
