@@ -105,13 +105,18 @@ int main(int argc, char **argv)
 	float *input = malloc(sizeof(float) * 3 * pixels * rows * cols);
 	for (int i = 0; i < 3 * pixels * rows * cols; ++i)
 		input[i] = 0;
+	for (int chan = 0; chan < 3; ++chan) {
+		for (int row = 0; row < rows; ++row) {
+			for (int col = 0; col < cols; ++col) {
+				float *values = input + pixels * ((cols * row + col) * 3 + chan);
+				decode(bits, values, length, lmin/2, 0, 0);
+				quantization(values, length, lmin/2, 0, 0, quant[chan], 0);
+			}
+		}
+	}
 	int qadj = 0;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		if (!get_bit(bits)) {
-			if (len == lmin/2) {
-				fprintf(stderr, "no picture\n");
-				return 1;
-			}
 			int factor = length / len;
 			width /= factor;
 			height /= factor;
@@ -136,9 +141,9 @@ int main(int argc, char **argv)
 				for (int col = 0; col < cols; ++col) {
 					float *values = input + pixels * ((cols * row + col) * 3 + chan);
 					for (int yoff = 0; yoff < len*2; yoff += len) {
-						for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
+						for (int xoff = !yoff * len; xoff < len*2; xoff += len) {
 							decode(bits, values, length, len, xoff, yoff);
-							quantization(values, length, len, xoff, yoff, quant[chan] >> qadj, xoff || yoff);
+							quantization(values, length, len, xoff, yoff, quant[chan] >> qadj, 1);
 						}
 					}
 				}

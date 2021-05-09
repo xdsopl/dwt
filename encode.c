@@ -157,6 +157,16 @@ int main(int argc, char **argv)
 	put_vli(bits, rows);
 	for (int chan = 0; chan < 3; ++chan)
 		put_vli(bits, quant[chan]);
+	bits_flush(bits);
+	for (int chan = 0; chan < 3; ++chan) {
+		for (int row = 0; row < rows; ++row) {
+			for (int col = 0; col < cols; ++col) {
+				float *values = output + pixels * ((cols * row + col) * 3 + chan);
+				quantization(values, length, lmin/2, 0, 0, quant[chan], 0);
+				encode(bits, values, length, lmin/2, 0, 0);
+			}
+		}
+	}
 	int qadj_max = 0;
 	while (quant[0] >> qadj_max && quant[1] >> qadj_max && quant[2] >> qadj_max)
 		++qadj_max;
@@ -174,8 +184,8 @@ int main(int argc, char **argv)
 				for (int col = 0; col < cols; ++col) {
 					float *values = output + pixels * ((cols * row + col) * 3 + chan);
 					for (int yoff = 0; yoff < len*2; yoff += len) {
-						for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
-							quantization(values, length, len, xoff, yoff, quant[chan] >> qadj, xoff || yoff);
+						for (int xoff = !yoff * len; xoff < len*2; xoff += len) {
+							quantization(values, length, len, xoff, yoff, quant[chan] >> qadj, 1);
 							encode(bits, values, length, len, xoff, yoff);
 						}
 					}
