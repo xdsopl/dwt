@@ -157,6 +157,7 @@ int main(int argc, char **argv)
 	put_vli(bits, rows);
 	for (int chan = 0; chan < 3; ++chan)
 		put_vli(bits, quant[chan]);
+	fprintf(stderr, "%d bits for meta data\n", bits_count(bits));
 	bits_flush(bits);
 	for (int chan = 0; chan < 3; ++chan) {
 		for (int row = 0; row < rows; ++row) {
@@ -167,6 +168,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+	fprintf(stderr, "%d bits for root image\n", bits_count(bits));
 	int qadj_max = 0;
 	while (quant[0] >> qadj_max && quant[1] >> qadj_max && quant[2] >> qadj_max)
 		++qadj_max;
