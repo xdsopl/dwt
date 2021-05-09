@@ -158,8 +158,12 @@ int main(int argc, char **argv)
 		for (int row = 0; row < rows; ++row) {
 			for (int col = 0; col < cols; ++col) {
 				float *values = input + pixels * ((cols * row + col) * 3 + chan);
-				transformation(output, values, length, lmin, wavelet);
-				copy(image->buffer+chan, output, width, height, length, col, row, cols, rows, 3);
+				if (length == lmin/2) {
+					copy(image->buffer+chan, values, width, height, length, col, row, cols, rows, 3);
+				} else {
+					transformation(output, values, length, lmin, wavelet);
+					copy(image->buffer+chan, output, width, height, length, col, row, cols, rows, 3);
+				}
 			}
 		}
 	}
