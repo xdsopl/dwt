@@ -99,8 +99,8 @@ int main(int argc, char **argv)
 	int cols = get_vli(bits);
 	int rows = get_vli(bits);
 	int quant[3];
-	for (int i = 0; i < 3; ++i)
-		quant[i] = get_vli(bits);
+	for (int chan = 0; chan < 3; ++chan)
+		quant[chan] = get_vli(bits);
 	int pixels = length * length;
 	float *input = malloc(sizeof(float) * 3 * pixels * rows * cols);
 	for (int i = 0; i < 3 * pixels * rows * cols; ++i)
@@ -116,29 +116,29 @@ int main(int argc, char **argv)
 			width /= factor;
 			height /= factor;
 			float *tmp = malloc(sizeof(float) * 3 * len * len * rows * cols);
-			for (int j = 0; j < 3; ++j)
+			for (int chan = 0; chan < 3; ++chan)
 				for (int row = 0; row < rows; ++row)
 					for (int col = 0; col < cols; ++col)
 						for (int y = 0; y < len; ++y)
 							for (int x = 0; x < len; ++x)
-								tmp[len*(len*((cols*row+col)*3+j)+y)+x] =
-									input[length*(length*((cols*row+col)*3+j)+y)+x] / factor;
+								tmp[len*(len*((cols*row+col)*3+chan)+y)+x] =
+									input[length*(length*((cols*row+col)*3+chan)+y)+x] / factor;
 			free(input);
 			input = tmp;
 			length = len;
 			pixels = length * length;
 			break;
 		}
-		for (int j = 0; j < 3; ++j) {
+		for (int chan = 0; chan < 3; ++chan) {
 			if (!get_bit(bits))
 				continue;
 			for (int row = 0; row < rows; ++row) {
 				for (int col = 0; col < cols; ++col) {
-					float *values = input + pixels * ((cols * row + col) * 3 + j);
+					float *values = input + pixels * ((cols * row + col) * 3 + chan);
 					for (int yoff = 0; yoff < len*2; yoff += len) {
 						for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
 							decode(bits, values, length, len, xoff, yoff);
-							quantization(values, length, len, xoff, yoff, quant[j] >> qadj, xoff || yoff);
+							quantization(values, length, len, xoff, yoff, quant[chan] >> qadj, xoff || yoff);
 						}
 					}
 				}
@@ -149,12 +149,12 @@ int main(int argc, char **argv)
 	close_reader(bits);
 	struct image *image = new_image(argv[2], width, height);
 	float *output = malloc(sizeof(float) * pixels);
-	for (int j = 0; j < 3; ++j) {
+	for (int chan = 0; chan < 3; ++chan) {
 		for (int row = 0; row < rows; ++row) {
 			for (int col = 0; col < cols; ++col) {
-				float *values = input + pixels * ((cols * row + col) * 3 + j);
+				float *values = input + pixels * ((cols * row + col) * 3 + chan);
 				transformation(output, values, length, lmin, wavelet);
-				copy(image->buffer+j, output, width, height, length, col, row, cols, rows, 3);
+				copy(image->buffer+chan, output, width, height, length, col, row, cols, rows, 3);
 			}
 		}
 	}

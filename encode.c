@@ -118,10 +118,10 @@ int main(int argc, char **argv)
 	fprintf(stderr, "%d cols and %d rows of len %d\n", cols, rows, length);
 	int quant[3] = { 128, 32, 32 };
 	if (argc >= 6)
-		for (int i = 0; i < 3; ++i)
-			quant[i] = atoi(argv[3+i]);
-	for (int i = 0; i < 3; ++i)
-		if (!quant[i])
+		for (int chan = 0; chan < 3; ++chan)
+			quant[chan] = atoi(argv[3+chan]);
+	for (int chan = 0; chan < 3; ++chan)
+		if (!quant[chan])
 			return 1;
 	int wavelet = 1;
 	if (argc >= 7)
@@ -134,11 +134,11 @@ int main(int argc, char **argv)
 		image->buffer[3*i] -= 0.5f;
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * 3 * pixels * rows * cols);
-	for (int j = 0; j < 3; ++j) {
+	for (int chan = 0; chan < 3; ++chan) {
 		for (int row = 0; row < rows; ++row) {
 			for (int col = 0; col < cols; ++col) {
-				float *values = output + pixels * ((cols * row + col) * 3 + j);
-				copy(input, image->buffer+j, width, height, length, col, row, cols, rows, 3);
+				float *values = output + pixels * ((cols * row + col) * 3 + chan);
+				copy(input, image->buffer+chan, width, height, length, col, row, cols, rows, 3);
 				transformation(values, input, length, lmin, wavelet);
 			}
 		}
@@ -155,8 +155,8 @@ int main(int argc, char **argv)
 	put_vli(bits, lmin);
 	put_vli(bits, cols);
 	put_vli(bits, rows);
-	for (int i = 0; i < 3; ++i)
-		put_vli(bits, quant[i]);
+	for (int chan = 0; chan < 3; ++chan)
+		put_vli(bits, quant[chan]);
 	int qadj_max = 0;
 	while (quant[0] >> qadj_max && quant[1] >> qadj_max && quant[2] >> qadj_max)
 		++qadj_max;
@@ -164,18 +164,18 @@ int main(int argc, char **argv)
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		bits_flush(bits);
 		put_bit(bits, 1);
-		for (int j = 0; j < 3; ++j) {
-			if (quant[j] >> qadj == 0) {
+		for (int chan = 0; chan < 3; ++chan) {
+			if (quant[chan] >> qadj == 0) {
 				put_bit(bits, 0);
 				continue;
 			}
 			put_bit(bits, 1);
 			for (int row = 0; row < rows; ++row) {
 				for (int col = 0; col < cols; ++col) {
-					float *values = output + pixels * ((cols * row + col) * 3 + j);
+					float *values = output + pixels * ((cols * row + col) * 3 + chan);
 					for (int yoff = 0; yoff < len*2; yoff += len) {
 						for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
-							quantization(values, length, len, xoff, yoff, quant[j] >> qadj, xoff || yoff);
+							quantization(values, length, len, xoff, yoff, quant[chan] >> qadj, xoff || yoff);
 							encode(bits, values, length, len, xoff, yoff);
 						}
 					}
