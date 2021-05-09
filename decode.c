@@ -92,7 +92,6 @@ int main(int argc, char **argv)
 	if (!bits)
 		return 1;
 	int wavelet = get_bit(bits);
-	int rounding = get_bit(bits);
 	int width = get_vli(bits);
 	int height = get_vli(bits);
 	int length = get_vli(bits);
@@ -139,7 +138,7 @@ int main(int argc, char **argv)
 					for (int yoff = 0; yoff < len*2; yoff += len) {
 						for (int xoff = (!yoff && len >= lmin) * len; xoff < len*2; xoff += len) {
 							decode(bits, values, length, len, xoff, yoff);
-							quantization(values, length, len, xoff, yoff, quant[j] >> qadj, (xoff || yoff) && rounding);
+							quantization(values, length, len, xoff, yoff, quant[j] >> qadj, xoff || yoff);
 						}
 					}
 				}
