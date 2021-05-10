@@ -126,7 +126,6 @@ int main(int argc, char **argv)
 			}
 		}
 	}
-	int qadj = 0;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		if (!get_bit(bits)) {
 			int factor = length / len;
@@ -146,6 +145,7 @@ int main(int argc, char **argv)
 			pixels = length * length;
 			break;
 		}
+		int qadj = get_vli(bits);
 		for (int chan = 0; chan < 3; ++chan) {
 			if (!get_bit(bits))
 				continue;
@@ -161,7 +161,6 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-		qadj = get_vli(bits);
 	}
 	close_reader(bits);
 	struct image *image = new_image(argv[2], width, height);

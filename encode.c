@@ -184,10 +184,14 @@ int main(int argc, char **argv)
 	int qadj_max = 0;
 	while (quant[0] >> qadj_max && quant[1] >> qadj_max && quant[2] >> qadj_max)
 		++qadj_max;
-	int qadj = 0;
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		bits_flush(bits);
 		put_bit(bits, 1);
+		int qadj = (bits_count(bits) * (length / len) - capacity) / capacity;
+		qadj = qadj < 0 ? 0 : qadj > qadj_max ? qadj_max : qadj;
+		put_vli(bits, qadj);
+		if (qadj)
+			fprintf(stderr, "adjusting quantization by %d in len %d\n", qadj, len);
 		for (int chan = 0; chan < 3; ++chan) {
 			if (quant[chan] >> qadj == 0) {
 				put_bit(bits, 0);
@@ -213,11 +217,6 @@ int main(int argc, char **argv)
 			fprintf(stderr, "%d bits over capacity, discarding %.1f%% of pixels\n", cnt-capacity+1, (100.f*(length*length-len*len))/(length*length));
 			break;
 		}
-		qadj = (cnt * (length / len) - capacity) / capacity;
-		qadj = qadj < 0 ? 0 : qadj > qadj_max ? qadj_max : qadj;
-		put_vli(bits, qadj);
-		if (qadj && len < length/4)
-			fprintf(stderr, "adjusting quantization by %d in len %d\n", qadj, 2*len);
 	}
 	int cnt = bits_count(bits);
 	int bytes = (cnt + 7) / 8;
