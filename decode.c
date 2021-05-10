@@ -81,9 +81,11 @@ void decode(struct bits_reader *bits, float *values, int length, int len, int xo
 
 void decode_root(struct bits_reader *bits, float *values, int length, int len)
 {
-	for (int j = 0; j < len; ++j) {
+	int cnt = get_vli(bits);
+	for (int j = 0; cnt && j < len; ++j) {
 		for (int i = 0; i < len; ++i) {
-			int val = get_vli(bits);
+			int val;
+			read_bits(bits, &val, cnt);
 			if (val && get_bit(bits))
 				val = -val;
 			values[length*j+i] = val;

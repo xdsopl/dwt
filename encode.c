@@ -75,24 +75,30 @@ void encode(struct bits_writer *bits, float *values, int length, int len, int xo
 	}
 }
 
-void encode_root(struct bits_writer *bits, float *values, int length, int len)
-{
-	for (int j = 0; j < len; ++j) {
-		for (int i = 0; i < len; ++i) {
-			float val = values[length*j+i];
-			put_vli(bits, fabsf(val));
-			if (val)
-				put_bit(bits, val < 0.f);
-		}
-	}
-}
-
 int ilog2(int x)
 {
 	int l = -1;
 	for (; x > 0; x /= 2)
 		++l;
 	return l;
+}
+
+void encode_root(struct bits_writer *bits, float *values, int length, int len)
+{
+	float max = 0;
+	for (int j = 0; j < len; ++j)
+		for (int i = 0; i < len; ++i)
+			max = fmaxf(max, fabsf(values[length*j+i]));
+	int cnt = 1 + ilog2(max);
+	put_vli(bits, cnt);
+	for (int j = 0; cnt && j < len; ++j) {
+		for (int i = 0; i < len; ++i) {
+			float val = values[length*j+i];
+			write_bits(bits, fabsf(val), cnt);
+			if (val)
+				put_bit(bits, val < 0.f);
+		}
+	}
 }
 
 int main(int argc, char **argv)
