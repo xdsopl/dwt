@@ -87,9 +87,12 @@ void encode_root(struct bits_writer *bits, float *values, int length, int len)
 	}
 }
 
-int pow2(int N)
+int ilog2(int x)
 {
-	return !(N & (N - 1));
+	int l = -1;
+	for (; x > 0; x /= 2)
+		++l;
+	return l;
 }
 
 int main(int argc, char **argv)
@@ -103,12 +106,14 @@ int main(int argc, char **argv)
 		return 1;
 	int width = image->width;
 	int height = image->height;
-	int lmin = 8;
-	int length = width;
+	int dmin = 3;
+	int lmin = 1 << dmin;
+	int depth = ilog2(width);
+	int length = 1 << depth;
 	int cols = 1;
 	int rows = 1;
-	if (width != height || !pow2(width)) {
-		for (int best = -1, l = lmin; l <= width || l <= height; l *= 2) {
+	if (width != height || width != length) {
+		for (int best = -1, d = dmin, l = lmin; l <= width || l <= height; ++d, l *= 2) {
 			int c = (width + l - 1) / l;
 			int r = (height + l - 1) / l;
 			while (c > 1 && (l-lmin/2)*c < width)
@@ -122,7 +127,8 @@ int main(int argc, char **argv)
 				best = o;
 				cols = c;
 				rows = r;
-				length = l;
+				depth = d;
+				length = 1 << d;
 			}
 		}
 	}
@@ -163,8 +169,8 @@ int main(int argc, char **argv)
 	put_bit(bits, wavelet);
 	put_vli(bits, width);
 	put_vli(bits, height);
-	put_vli(bits, length);
-	put_vli(bits, lmin);
+	put_vli(bits, depth);
+	put_vli(bits, dmin);
 	put_vli(bits, cols);
 	put_vli(bits, rows);
 	for (int chan = 0; chan < 3; ++chan)

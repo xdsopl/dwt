@@ -106,13 +106,15 @@ int main(int argc, char **argv)
 	int wavelet = get_bit(bits);
 	int width = get_vli(bits);
 	int height = get_vli(bits);
-	int length = get_vli(bits);
-	int lmin = get_vli(bits);
+	int depth = get_vli(bits);
+	int dmin = get_vli(bits);
 	int cols = get_vli(bits);
 	int rows = get_vli(bits);
 	int quant[3];
 	for (int chan = 0; chan < 3; ++chan)
 		quant[chan] = get_vli(bits);
+	int length = 1 << depth;
+	int lmin = 1 << dmin;
 	int pixels = length * length;
 	float *input = malloc(sizeof(float) * 3 * pixels * rows * cols);
 	for (int i = 0; i < 3 * pixels * rows * cols; ++i)
