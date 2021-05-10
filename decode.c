@@ -33,10 +33,7 @@ void quantization(float *values, int length, int len, int xoff, int yoff, int qu
 				else if (v > 0.f)
 					v += bias;
 			}
-			if (quant)
-				v /= quant;
-			else
-				v = 0;
+			v /= 1 << quant;
 			values[idx] = v;
 		}
 	}
@@ -157,7 +154,7 @@ int main(int argc, char **argv)
 					for (int yoff = 0; yoff < len*2; yoff += len) {
 						for (int xoff = !yoff * len; xoff < len*2; xoff += len) {
 							decode(bits, values, length, len, xoff, yoff);
-							quantization(values, length, len, xoff, yoff, quant[chan] >> qadj, 1);
+							quantization(values, length, len, xoff, yoff, quant[chan] - qadj, 1);
 						}
 					}
 				}

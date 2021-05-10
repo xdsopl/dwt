@@ -26,7 +26,7 @@ void quantization(float *values, int length, int len, int xoff, int yoff, int qu
 		for (int x = 0; x < len; ++x) {
 			int idx = length * (yoff + y) + xoff + x;
 			float v = values[idx];
-			v *= quant;
+			v *= 1 << quant;
 			if (rounding)
 				v = truncf(v);
 			else
@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 		return 1;
 	int width = image->width;
 	int height = image->height;
-	int dmin = 3;
+	int dmin = 2;
 	int lmin = 1 << dmin;
 	int depth = ilog2(width);
 	int length = 1 << depth;
@@ -134,13 +134,10 @@ int main(int argc, char **argv)
 	}
 	int pixels = length * length;
 	fprintf(stderr, "%d cols and %d rows of len %d\n", cols, rows, length);
-	int quant[3] = { 128, 32, 32 };
+	int quant[3] = { 7, 5, 5 };
 	if (argc >= 6)
 		for (int chan = 0; chan < 3; ++chan)
 			quant[chan] = atoi(argv[3+chan]);
-	for (int chan = 0; chan < 3; ++chan)
-		if (!quant[chan])
-			return 1;
 	int wavelet = 1;
 	if (argc >= 7)
 		wavelet = atoi(argv[6]);
@@ -188,18 +185,19 @@ int main(int argc, char **argv)
 	}
 	fprintf(stderr, "%d bits for root image\n", bits_count(bits));
 	int qadj_max = 0;
-	while (quant[0] >> qadj_max && quant[1] >> qadj_max && quant[2] >> qadj_max)
-		++qadj_max;
+	for (int chan = 0; chan < 3; ++chan)
+		if (quant[chan] > qadj_max)
+			qadj_max = quant[chan];
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		bits_flush(bits);
 		put_bit(bits, 1);
-		int qadj = (bits_count(bits) * (length / len) - capacity) / capacity;
+		int qadj = ilog2(1 + (bits_count(bits) * (2 * length / len) - capacity) / capacity);
 		qadj = qadj < 0 ? 0 : qadj > qadj_max ? qadj_max : qadj;
 		put_vli(bits, qadj);
 		if (qadj)
 			fprintf(stderr, "adjusting quantization by %d in len %d\n", qadj, len);
 		for (int chan = 0; chan < 3; ++chan) {
-			if (quant[chan] >> qadj == 0) {
+			if (quant[chan] < qadj) {
 				put_bit(bits, 0);
 				continue;
 			}
@@ -209,7 +207,7 @@ int main(int argc, char **argv)
 					float *values = output + pixels * ((cols * row + col) * 3 + chan);
 					for (int yoff = 0; yoff < len*2; yoff += len) {
 						for (int xoff = !yoff * len; xoff < len*2; xoff += len) {
-							quantization(values, length, len, xoff, yoff, quant[chan] >> qadj, 1);
+							quantization(values, length, len, xoff, yoff, quant[chan] - qadj, 1);
 							encode(bits, values, length, len, xoff, yoff);
 						}
 					}
