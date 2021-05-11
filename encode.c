@@ -61,24 +61,18 @@ void copy(float *output, float *input, int width, int height, int length, int co
 			output[length*j+i] = input[(width*(h1-abs(h1-y%(2*h1)))+w1-abs(w1-x%(2*w1)))*stride];
 }
 
-void encode(struct bits_writer *bits, int *val, int num)
+void encode(struct bits_writer *bits, int *val, int num, int plane, int planes)
 {
-	int last = 0;
+	int last = 0, mask = 1 << plane;
 	for (int i = 0; i < num; ++i) {
-		if (val[i]) {
-			if (i - last) {
-				put_vli(bits, 0);
-				put_vli(bits, i - last - 1);
-			}
+		if (val[i] & mask) {
+			put_vli(bits, i - last);
 			last = i + 1;
-			put_vli(bits, abs(val[i]));
-			put_bit(bits, val[i] < 0);
+			if (plane == planes-1)
+				val[i] ^= ~mask;
 		}
 	}
-	if (last < num) {
-		put_vli(bits, 0);
-		put_vli(bits, num - last - 1);
-	}
+	put_vli(bits, num - last);
 }
 
 int ilog2(int x)
@@ -114,6 +108,20 @@ int over_capacity(struct bits_writer *bits, int length, int len, int capacity)
 		return 1;
 	}
 	return 0;
+}
+
+int count_planes(int *val, int num)
+{
+	int neg = -1, pos = 0;
+	for (int i = 0; i < num; ++i)
+		if (val[i] < 0)
+			neg &= val[i];
+		else
+			pos |= val[i];
+	int cnt = sizeof(int) * 8 - 1;
+	while (cnt >= 0 && (neg&(1<<cnt)) && !(pos&(1<<cnt)))
+		--cnt;
+	return cnt + 2;
 }
 
 int main(int argc, char **argv)
@@ -204,14 +212,21 @@ int main(int argc, char **argv)
 	for (int len = lmin/2, num = len*len*cols*rows*3; len <= length/2; len *= 2, num = len*len*cols*rows*3) {
 		bits_flush(bits);
 		put_bit(bits, 1);
-		encode(bits, buf, num);
+		int planes = count_planes(buf, num);
+		put_vli(bits, planes);
+		for (int plane = planes-1; plane >= 0; --plane)
+			encode(bits, buf, num, plane, planes);
 		buf += num;
 		if (over_capacity(bits, length, len, capacity))
 			break;
 		bits_flush(bits);
 		put_bit(bits, 1);
-		for (int chan = 1; chan < 3; ++chan, buf += num)
-			encode(bits, buf, num);
+		for (int chan = 1; chan < 3; ++chan, buf += num) {
+			int planes = count_planes(buf, num);
+			put_vli(bits, planes);
+			for (int plane = planes-1; plane >= 0; --plane)
+				encode(bits, buf, num, plane, planes);
+		}
 		if (over_capacity(bits, length, len, capacity))
 			break;
 	}

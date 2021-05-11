@@ -73,16 +73,15 @@ void copy(float *output, float *input, int width, int height, int length, int co
 				output[(width*y+x)*stride] = flerpf(output[(width*y+x)*stride], input[length*j+i], fclampf(i/(2.f*xoff), 0.f, 1.f) * fclampf(j/(2.f*yoff), 0.f, 1.f));
 }
 
-void decode(struct bits_reader *bits, int *val, int num)
+void decode(struct bits_reader *bits, int *val, int num, int plane, int planes)
 {
-	for (int i = 0; i < num; ++i) {
-		val[i] = get_vli(bits);
-		if (val[i]) {
-			if (get_bit(bits))
-				val[i] = -val[i];
-		} else {
-			i += get_vli(bits);
-		}
+	for (int i = get_vli(bits); i < num; i += get_vli(bits) + 1)
+		val[i] |= 1 << plane;
+	if (!plane) {
+		int mask = 1 << (planes - 1);
+		for (int i = 0; i < num; ++i)
+			if (val[i] & mask)
+				val[i] ^= ~mask;
 	}
 }
 
@@ -127,12 +126,17 @@ int main(int argc, char **argv)
 	for (int len = lmin/2, num = len*len*cols*rows*3; len <= length/2; len *= 2, num = len*len*cols*rows*3) {
 		if (!get_bit(bits))
 			break;
-		decode(bits, buf, num);
+		int planes = get_vli(bits);
+		for (int plane = planes-1; plane >= 0; --plane)
+			decode(bits, buf, num, plane, planes);
 		buf += num;
 		if (!get_bit(bits))
 			break;
-		for (int chan = 1; chan < 3; ++chan, buf += num)
-			decode(bits, buf, num);
+		for (int chan = 1; chan < 3; ++chan, buf += num) {
+			int planes = get_vli(bits);
+			for (int plane = planes-1; plane >= 0; --plane)
+				decode(bits, buf, num, plane, planes);
+		}
 	}
 	close_reader(bits);
 	struct image *image = new_image(argv[2], width, height);
