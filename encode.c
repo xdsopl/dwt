@@ -1,7 +1,7 @@
 /*
 Encoder for lossy image compression based on the discrete wavelet transformation
 
-Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
+Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 */
 
 #include "haar.h"
@@ -20,18 +20,26 @@ void transformation(float *output, float *input, int length, int lmin, int wavel
 		haar2d(output, input, lmin, length, 1, 1);
 }
 
-void quantization(float *values, int length, int len, int xoff, int yoff, int quant, int rounding)
+void quantization(int *output, float *input, int length, int lmin, int quant, int col, int row, int cols, int rows, int chan, int chans)
 {
-	for (int y = 0; y < len; ++y) {
-		for (int x = 0; x < len; ++x) {
-			int idx = length * (yoff + y) + xoff + x;
-			float v = values[idx];
+	for (int y = 0, *out = output+(lmin/2)*(lmin/2)*(cols*(rows*chan+row)+col); y < lmin/2; ++y) {
+		for (int x = 0; x < lmin/2; ++x) {
+			float v = input[length*y+x];
 			v *= 1 << quant;
-			if (rounding)
-				v = truncf(v);
-			else
-				v = nearbyintf(v);
-			values[idx] = v;
+			*out++ = nearbyintf(v);
+		}
+	}
+	output += (lmin/2) * (lmin/2) * cols * rows * chans;
+	for (int len = lmin/2; len <= length/2; output += 3*len*len*cols*rows*chans, len *= 2) {
+		for (int yoff = 0, *out = output+3*len*len*(cols*(rows*chan+row)+col); yoff < len*2; yoff += len) {
+			for (int xoff = !yoff * len; xoff < len*2; xoff += len) {
+				for (int i = 0; i < len*len; ++i) {
+					struct position pos = hilbert(len, i);
+					float v = input[length*(yoff+pos.y)+xoff+pos.x];
+					v *= 1 << quant;
+					*out++ = truncf(v);
+				}
+			}
 		}
 	}
 }
@@ -53,25 +61,23 @@ void copy(float *output, float *input, int width, int height, int length, int co
 			output[length*j+i] = input[(width*(h1-abs(h1-y%(2*h1)))+w1-abs(w1-x%(2*w1)))*stride];
 }
 
-void encode(struct bits_writer *bits, float *values, int length, int len, int xoff, int yoff)
+void encode(struct bits_writer *bits, int *val, int num)
 {
 	int last = 0;
-	for (int i = 0; i < len*len; ++i) {
-		struct position pos = hilbert(len, i);
-		int idx = length * (yoff + pos.y) + xoff + pos.x;
-		if (values[idx]) {
+	for (int i = 0; i < num; ++i) {
+		if (val[i]) {
 			if (i - last) {
 				put_vli(bits, 0);
 				put_vli(bits, i - last - 1);
 			}
 			last = i + 1;
-			put_vli(bits, fabsf(values[idx]));
-			put_bit(bits, values[idx] < 0.f);
+			put_vli(bits, abs(val[i]));
+			put_bit(bits, val[i] < 0);
 		}
 	}
-	if (last < len*len) {
+	if (last < num) {
 		put_vli(bits, 0);
-		put_vli(bits, len*len - last - 1);
+		put_vli(bits, num - last - 1);
 	}
 }
 
@@ -83,21 +89,18 @@ int ilog2(int x)
 	return l;
 }
 
-void encode_root(struct bits_writer *bits, float *values, int length, int len)
+void encode_root(struct bits_writer *bits, int *val, int num)
 {
-	float max = 0;
-	for (int j = 0; j < len; ++j)
-		for (int i = 0; i < len; ++i)
-			max = fmaxf(max, fabsf(values[length*j+i]));
+	int max = 0;
+	for (int i = 0; i < num; ++i)
+		if (max < abs(val[i]))
+			max = abs(val[i]);
 	int cnt = 1 + ilog2(max);
 	put_vli(bits, cnt);
-	for (int j = 0; cnt && j < len; ++j) {
-		for (int i = 0; i < len; ++i) {
-			float val = values[length*j+i];
-			write_bits(bits, fabsf(val), cnt);
-			if (val)
-				put_bit(bits, val < 0.f);
-		}
+	for (int i = 0; cnt && i < num; ++i) {
+		write_bits(bits, abs(val[i]), cnt);
+		if (val[i])
+			put_bit(bits, val[i] < 0);
 	}
 }
 
@@ -154,18 +157,20 @@ int main(int argc, char **argv)
 	for (int i = 0; i < width * height; ++i)
 		image->buffer[3*i] -= 0.5f;
 	float *input = malloc(sizeof(float) * pixels);
-	float *output = malloc(sizeof(float) * 3 * pixels * rows * cols);
+	float *output = malloc(sizeof(float) * pixels);
+	int *buffer = malloc(sizeof(int) * 3 * pixels * rows * cols);
 	for (int chan = 0; chan < 3; ++chan) {
 		for (int row = 0; row < rows; ++row) {
 			for (int col = 0; col < cols; ++col) {
-				float *values = output + pixels * ((cols * row + col) * 3 + chan);
 				copy(input, image->buffer+chan, width, height, length, col, row, cols, rows, 3);
-				transformation(values, input, length, lmin, wavelet);
+				transformation(output, input, length, lmin, wavelet);
+				quantization(buffer, output, length, lmin, quant[chan], col, row, cols, rows, chan, 3);
 			}
 		}
 	}
 	delete_image(image);
 	free(input);
+	free(output);
 	struct bits_writer *bits = bits_writer(argv[2], capacity);
 	if (!bits)
 		return 1;
@@ -180,46 +185,15 @@ int main(int argc, char **argv)
 		put_vli(bits, quant[chan]);
 	fprintf(stderr, "%d bits for meta data\n", bits_count(bits));
 	bits_flush(bits);
-	for (int chan = 0; chan < 3; ++chan) {
-		for (int row = 0; row < rows; ++row) {
-			for (int col = 0; col < cols; ++col) {
-				float *values = output + pixels * ((cols * row + col) * 3 + chan);
-				quantization(values, length, lmin/2, 0, 0, quant[chan], 0);
-				encode_root(bits, values, length, lmin/2);
-			}
-		}
-	}
+	int *buf = buffer;
+	for (int chan = 0; chan < 3; ++chan, buf += (lmin/2)*(lmin/2)*cols*rows)
+		encode_root(bits, buf, (lmin/2)*(lmin/2)*cols*rows);
 	fprintf(stderr, "%d bits for root image\n", bits_count(bits));
-	int qadj_max = 0;
-	for (int chan = 0; chan < 3; ++chan)
-		if (quant[chan] > qadj_max)
-			qadj_max = quant[chan];
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		bits_flush(bits);
 		put_bit(bits, 1);
-		int qadj = ilog2(1 + (bits_count(bits) * (2 * length / len) - capacity) / capacity);
-		qadj = qadj < 0 ? 0 : qadj > qadj_max ? qadj_max : qadj;
-		put_vli(bits, qadj);
-		if (qadj)
-			fprintf(stderr, "adjusting quantization by %d in len %d\n", qadj, len);
-		for (int chan = 0; chan < 3; ++chan) {
-			if (quant[chan] < qadj) {
-				put_bit(bits, 0);
-				continue;
-			}
-			put_bit(bits, 1);
-			for (int row = 0; row < rows; ++row) {
-				for (int col = 0; col < cols; ++col) {
-					float *values = output + pixels * ((cols * row + col) * 3 + chan);
-					for (int yoff = 0; yoff < len*2; yoff += len) {
-						for (int xoff = !yoff * len; xoff < len*2; xoff += len) {
-							quantization(values, length, len, xoff, yoff, quant[chan] - qadj, 1);
-							encode(bits, values, length, len, xoff, yoff);
-						}
-					}
-				}
-			}
-		}
+		for (int chan = 0; chan < 3; ++chan, buf += len*len*cols*rows*3)
+			encode(bits, buf, len*len*cols*rows*3);
 		int cnt = bits_count(bits);
 		if (cnt >= capacity) {
 			bits_discard(bits);
@@ -228,6 +202,7 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
+	free(buffer);
 	int cnt = bits_count(bits);
 	int bytes = (cnt + 7) / 8;
 	int kib = (bytes + 512) / 1024;

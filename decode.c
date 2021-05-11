@@ -1,7 +1,7 @@
 /*
 Decoder for lossy image compression based on the discrete wavelet transformation
 
-Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
+Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 */
 
 #include "haar.h"
@@ -20,21 +20,31 @@ void transformation(float *output, float *input, int length, int lmin, int wavel
 		ihaar2d(output, input, lmin, length, 1, 1);
 }
 
-void quantization(float *values, int length, int len, int xoff, int yoff, int quant, int rounding)
+void quantization(float *output, int *input, int length, int lmin, int quant, int col, int row, int cols, int rows, int chan, int chans)
 {
-	for (int y = 0; y < len; ++y) {
-		for (int x = 0; x < len; ++x) {
-			int idx = length * (yoff + y) + xoff + x;
-			float v = values[idx];
-			if (rounding) {
-				float bias = 0.375f;
-				if (v < 0.f)
-					v -= bias;
-				else if (v > 0.f)
-					v += bias;
-			}
+	for (int y = 0, *in = input+(lmin/2)*(lmin/2)*(cols*(rows*chan+row)+col); y < lmin/2; ++y) {
+		for (int x = 0; x < lmin/2; ++x) {
+			float v = *in++;
 			v /= 1 << quant;
-			values[idx] = v;
+			output[length*y+x] = v;
+		}
+	}
+	input += (lmin/2) * (lmin/2) * cols * rows * chans;
+	for (int len = lmin/2; len <= length/2; input += 3*len*len*cols*rows*chans, len *= 2) {
+		for (int yoff = 0, *in = input+3*len*len*(cols*(rows*chan+row)+col); yoff < len*2; yoff += len) {
+			for (int xoff = !yoff * len; xoff < len*2; xoff += len) {
+				for (int i = 0; i < len*len; ++i) {
+					float v = *in++;
+					float bias = 0.375f;
+					if (v < 0.f)
+						v -= bias;
+					else if (v > 0.f)
+						v += bias;
+					v /= 1 << quant;
+					struct position pos = hilbert(len, i);
+					output[length*(yoff+pos.y)+xoff+pos.x] = v;
+				}
+			}
 		}
 	}
 }
@@ -63,33 +73,26 @@ void copy(float *output, float *input, int width, int height, int length, int co
 				output[(width*y+x)*stride] = flerpf(output[(width*y+x)*stride], input[length*j+i], fclampf(i/(2.f*xoff), 0.f, 1.f) * fclampf(j/(2.f*yoff), 0.f, 1.f));
 }
 
-void decode(struct bits_reader *bits, float *values, int length, int len, int xoff, int yoff)
+void decode(struct bits_reader *bits, int *val, int num)
 {
-	for (int i = 0; i < len*len; ++i) {
-		struct position pos = hilbert(len, i);
-		int idx = length * (yoff + pos.y) + xoff + pos.x;
-		int val = get_vli(bits);
-		if (val) {
+	for (int i = 0; i < num; ++i) {
+		val[i] = get_vli(bits);
+		if (val[i]) {
 			if (get_bit(bits))
-				val = -val;
-			values[idx] = val;
+				val[i] = -val[i];
 		} else {
 			i += get_vli(bits);
 		}
 	}
 }
 
-void decode_root(struct bits_reader *bits, float *values, int length, int len)
+void decode_root(struct bits_reader *bits, int *val, int num)
 {
 	int cnt = get_vli(bits);
-	for (int j = 0; cnt && j < len; ++j) {
-		for (int i = 0; i < len; ++i) {
-			int val;
-			read_bits(bits, &val, cnt);
-			if (val && get_bit(bits))
-				val = -val;
-			values[length*j+i] = val;
-		}
+	for (int i = 0; cnt && i < num; ++i) {
+		read_bits(bits, val+i, cnt);
+		if (val[i] && get_bit(bits))
+			val[i] = -val[i];
 	}
 }
 
@@ -115,75 +118,40 @@ int main(int argc, char **argv)
 	int length = 1 << depth;
 	int lmin = 1 << dmin;
 	int pixels = length * length;
-	float *input = malloc(sizeof(float) * 3 * pixels * rows * cols);
+	int *buffer = malloc(sizeof(int) * 3 * pixels * rows * cols);
 	for (int i = 0; i < 3 * pixels * rows * cols; ++i)
-		input[i] = 0;
-	for (int chan = 0; chan < 3; ++chan) {
-		for (int row = 0; row < rows; ++row) {
-			for (int col = 0; col < cols; ++col) {
-				float *values = input + pixels * ((cols * row + col) * 3 + chan);
-				decode_root(bits, values, length, lmin/2);
-				quantization(values, length, lmin/2, 0, 0, quant[chan], 0);
-			}
-		}
-	}
+		buffer[i] = 0;
+	int *buf = buffer;
+	for (int chan = 0; chan < 3; ++chan, buf += (lmin/2)*(lmin/2)*cols*rows)
+		decode_root(bits, buf, (lmin/2)*(lmin/2)*cols*rows);
 	for (int len = lmin/2; len <= length/2; len *= 2) {
-		if (!get_bit(bits)) {
-			int factor = length / len;
-			width /= factor;
-			height /= factor;
-			float *tmp = malloc(sizeof(float) * 3 * len * len * rows * cols);
-			for (int chan = 0; chan < 3; ++chan)
-				for (int row = 0; row < rows; ++row)
-					for (int col = 0; col < cols; ++col)
-						for (int y = 0; y < len; ++y)
-							for (int x = 0; x < len; ++x)
-								tmp[len*(len*((cols*row+col)*3+chan)+y)+x] =
-									input[length*(length*((cols*row+col)*3+chan)+y)+x] / factor;
-			free(input);
-			input = tmp;
-			length = len;
-			pixels = length * length;
+		if (!get_bit(bits))
 			break;
-		}
-		int qadj = get_vli(bits);
-		for (int chan = 0; chan < 3; ++chan) {
-			if (!get_bit(bits))
-				continue;
-			for (int row = 0; row < rows; ++row) {
-				for (int col = 0; col < cols; ++col) {
-					float *values = input + pixels * ((cols * row + col) * 3 + chan);
-					for (int yoff = 0; yoff < len*2; yoff += len) {
-						for (int xoff = !yoff * len; xoff < len*2; xoff += len) {
-							decode(bits, values, length, len, xoff, yoff);
-							quantization(values, length, len, xoff, yoff, quant[chan] - qadj, 1);
-						}
-					}
-				}
-			}
-		}
+		for (int chan = 0; chan < 3; ++chan, buf += len*len*cols*rows*3)
+			decode(bits, buf, len*len*cols*rows*3);
 	}
 	close_reader(bits);
 	struct image *image = new_image(argv[2], width, height);
+	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);
 	for (int chan = 0; chan < 3; ++chan) {
 		for (int row = 0; row < rows; ++row) {
 			for (int col = 0; col < cols; ++col) {
-				float *values = input + pixels * ((cols * row + col) * 3 + chan);
-				if (length == lmin/2) {
-					copy(image->buffer+chan, values, width, height, length, col, row, cols, rows, 3);
-				} else {
-					transformation(output, values, length, lmin, wavelet);
-					copy(image->buffer+chan, output, width, height, length, col, row, cols, rows, 3);
-				}
+				quantization(input, buffer, length, lmin, quant[chan], col, row, cols, rows, chan, 3);
+				transformation(output, input, length, lmin, wavelet);
+				copy(image->buffer+chan, output, width, height, length, col, row, cols, rows, 3);
 			}
 		}
 	}
+	free(buffer);
+	free(input);
+	free(output);
 	for (int i = 0; i < width * height; ++i)
 		image->buffer[3*i] += 0.5f;
 	rgb_image(image);
 	if (!write_ppm(image))
 		return 1;
+	delete_image(image);
 	return 0;
 }
 
