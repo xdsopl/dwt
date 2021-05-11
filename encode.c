@@ -198,20 +198,20 @@ int main(int argc, char **argv)
 	fprintf(stderr, "%d bits for meta data\n", bits_count(bits));
 	bits_flush(bits);
 	int *buf = buffer;
-	for (int chan = 0; chan < 3; ++chan, buf += (lmin/2)*(lmin/2)*cols*rows)
-		encode_root(bits, buf, (lmin/2)*(lmin/2)*cols*rows);
+	for (int chan = 0, num = (lmin/2)*(lmin/2)*cols*rows; chan < 3; ++chan, buf += num)
+		encode_root(bits, buf, num);
 	fprintf(stderr, "%d bits for root image\n", bits_count(bits));
-	for (int len = lmin/2; len <= length/2; len *= 2) {
+	for (int len = lmin/2, num = len*len*cols*rows*3; len <= length/2; len *= 2, num = len*len*cols*rows*3) {
 		bits_flush(bits);
 		put_bit(bits, 1);
-		encode(bits, buf, len*len*cols*rows*3);
-		buf += len*len*cols*rows*3;
+		encode(bits, buf, num);
+		buf += num;
 		if (over_capacity(bits, length, len, capacity))
 			break;
 		bits_flush(bits);
 		put_bit(bits, 1);
-		for (int chan = 1; chan < 3; ++chan, buf += len*len*cols*rows*3)
-			encode(bits, buf, len*len*cols*rows*3);
+		for (int chan = 1; chan < 3; ++chan, buf += num)
+			encode(bits, buf, num);
 		if (over_capacity(bits, length, len, capacity))
 			break;
 	}

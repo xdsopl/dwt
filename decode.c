@@ -122,17 +122,17 @@ int main(int argc, char **argv)
 	for (int i = 0; i < 3 * pixels * rows * cols; ++i)
 		buffer[i] = 0;
 	int *buf = buffer;
-	for (int chan = 0; chan < 3; ++chan, buf += (lmin/2)*(lmin/2)*cols*rows)
-		decode_root(bits, buf, (lmin/2)*(lmin/2)*cols*rows);
-	for (int len = lmin/2; len <= length/2; len *= 2) {
+	for (int chan = 0, num = (lmin/2)*(lmin/2)*cols*rows; chan < 3; ++chan, buf += num)
+		decode_root(bits, buf, num);
+	for (int len = lmin/2, num = len*len*cols*rows*3; len <= length/2; len *= 2, num = len*len*cols*rows*3) {
 		if (!get_bit(bits))
 			break;
-		decode(bits, buf, len*len*cols*rows*3);
-		buf += len*len*cols*rows*3;
+		decode(bits, buf, num);
+		buf += num;
 		if (!get_bit(bits))
 			break;
-		for (int chan = 1; chan < 3; ++chan, buf += len*len*cols*rows*3)
-			decode(bits, buf, len*len*cols*rows*3);
+		for (int chan = 1; chan < 3; ++chan, buf += num)
+			decode(bits, buf, num);
 	}
 	close_reader(bits);
 	struct image *image = new_image(argv[2], width, height);
