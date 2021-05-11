@@ -112,12 +112,16 @@ int over_capacity(struct bits_writer *bits, int length, int len, int capacity)
 
 int count_planes(int *val, int num)
 {
-	int neg = -1, pos = 0;
-	for (int i = 0; i < num; ++i)
+	int neg = -1, pos = 0, nzo = 0;
+	for (int i = 0; i < num; ++i) {
+		nzo |= val[i];
 		if (val[i] < 0)
 			neg &= val[i];
 		else
 			pos |= val[i];
+	}
+	if (!nzo)
+		return 0;
 	int cnt = sizeof(int) * 8 - 1;
 	while (cnt >= 0 && (neg&(1<<cnt)) && !(pos&(1<<cnt)))
 		--cnt;
