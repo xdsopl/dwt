@@ -127,7 +127,11 @@ int main(int argc, char **argv)
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		if (!get_bit(bits))
 			break;
-		for (int chan = 0; chan < 3; ++chan, buf += len*len*cols*rows*3)
+		decode(bits, buf, len*len*cols*rows*3);
+		buf += len*len*cols*rows*3;
+		if (!get_bit(bits))
+			break;
+		for (int chan = 1; chan < 3; ++chan, buf += len*len*cols*rows*3)
 			decode(bits, buf, len*len*cols*rows*3);
 	}
 	close_reader(bits);

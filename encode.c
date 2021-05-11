@@ -104,6 +104,18 @@ void encode_root(struct bits_writer *bits, int *val, int num)
 	}
 }
 
+int over_capacity(struct bits_writer *bits, int length, int len, int capacity)
+{
+	int cnt = bits_count(bits);
+	if (cnt >= capacity) {
+		bits_discard(bits);
+		put_bit(bits, 0);
+		fprintf(stderr, "%d bits over capacity, discarding %.1f%% of pixels\n", cnt-capacity+1, (100.f*(length*length-len*len))/(length*length));
+		return 1;
+	}
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	if (argc != 3 && argc != 6 && argc != 7 && argc != 8) {
@@ -192,15 +204,16 @@ int main(int argc, char **argv)
 	for (int len = lmin/2; len <= length/2; len *= 2) {
 		bits_flush(bits);
 		put_bit(bits, 1);
-		for (int chan = 0; chan < 3; ++chan, buf += len*len*cols*rows*3)
-			encode(bits, buf, len*len*cols*rows*3);
-		int cnt = bits_count(bits);
-		if (cnt >= capacity) {
-			bits_discard(bits);
-			put_bit(bits, 0);
-			fprintf(stderr, "%d bits over capacity, discarding %.1f%% of pixels\n", cnt-capacity+1, (100.f*(length*length-len*len))/(length*length));
+		encode(bits, buf, len*len*cols*rows*3);
+		buf += len*len*cols*rows*3;
+		if (over_capacity(bits, length, len, capacity))
 			break;
-		}
+		bits_flush(bits);
+		put_bit(bits, 1);
+		for (int chan = 1; chan < 3; ++chan, buf += len*len*cols*rows*3)
+			encode(bits, buf, len*len*cols*rows*3);
+		if (over_capacity(bits, length, len, capacity))
+			break;
 	}
 	free(buffer);
 	int cnt = bits_count(bits);
