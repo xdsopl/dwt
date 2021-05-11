@@ -120,10 +120,9 @@ int main(int argc, char **argv)
 	int *buffer = malloc(sizeof(int) * 3 * pixels * rows * cols);
 	for (int i = 0; i < 3 * pixels * rows * cols; ++i)
 		buffer[i] = 0;
-	int *buf = buffer;
-	for (int chan = 0, num = (lmin/2)*(lmin/2)*cols*rows; chan < 3; ++chan, buf += num)
-		decode_root(bits, buf, num);
-	for (int len = lmin/2, num = len*len*cols*rows*3; len <= length/2; len *= 2, num = len*len*cols*rows*3) {
+	for (int chan = 0, num = (lmin/2)*(lmin/2)*cols*rows; chan < 3; ++chan)
+		decode_root(bits, buffer+num*chan, num);
+	for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num; len <= length/2; len *= 2, num = len*len*cols*rows*3) {
 		if (!get_bit(bits))
 			break;
 		int planes = get_vli(bits);

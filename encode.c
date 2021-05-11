@@ -209,11 +209,10 @@ int main(int argc, char **argv)
 		put_vli(bits, quant[chan]);
 	fprintf(stderr, "%d bits for meta data\n", bits_count(bits));
 	bits_flush(bits);
-	int *buf = buffer;
-	for (int chan = 0, num = (lmin/2)*(lmin/2)*cols*rows; chan < 3; ++chan, buf += num)
-		encode_root(bits, buf, num);
+	for (int chan = 0, num = (lmin/2)*(lmin/2)*cols*rows; chan < 3; ++chan)
+		encode_root(bits, buffer+num*chan, num);
 	fprintf(stderr, "%d bits for root image\n", bits_count(bits));
-	for (int len = lmin/2, num = len*len*cols*rows*3; len <= length/2; len *= 2, num = len*len*cols*rows*3) {
+	for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num; len <= length/2; len *= 2, num = len*len*cols*rows*3) {
 		bits_flush(bits);
 		put_bit(bits, 1);
 		int planes = count_planes(buf, num);
