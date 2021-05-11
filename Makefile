@@ -1,4 +1,4 @@
-CFLAGS = -std=c99 -W -Wall -O3 -D_GNU_SOURCE=1 -g
+CFLAGS = -std=c99 -W -Wall -O3 -D_GNU_SOURCE=1 -g -fsanitize=address
 LDLIBS = -lm
 
 all: encode decode
