@@ -98,13 +98,13 @@ void encode_root(struct bits_writer *bits, int *val, int num)
 	}
 }
 
-int over_capacity(struct bits_writer *bits, int length, int len, int capacity)
+int over_capacity(struct bits_writer *bits, int capacity)
 {
 	int cnt = bits_count(bits);
 	if (cnt >= capacity) {
 		bits_discard(bits);
 		put_bit(bits, 0);
-		fprintf(stderr, "%d bits over capacity, discarding %.1f%% of pixels\n", cnt-capacity+1, (100.f*(length*length-len*len))/(length*length));
+		fprintf(stderr, "%d bits over capacity, discarding.\n", cnt-capacity+1);
 		return 1;
 	}
 	return 0;
@@ -212,27 +212,27 @@ int main(int argc, char **argv)
 	for (int chan = 0, num = (lmin/2)*(lmin/2)*cols*rows; chan < 3; ++chan)
 		encode_root(bits, buffer+num*chan, num);
 	fprintf(stderr, "%d bits for root image\n", bits_count(bits));
-	for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num; len <= length/2; len *= 2, num = len*len*cols*rows*3) {
-		bits_flush(bits);
-		put_bit(bits, 1);
-		int planes = count_planes(buf, num);
-		put_vli(bits, planes);
-		for (int plane = planes-1; plane >= 0; --plane)
-			encode(bits, buf, num, plane, planes);
-		buf += num;
-		if (over_capacity(bits, length, len, capacity))
-			break;
-		bits_flush(bits);
-		put_bit(bits, 1);
-		for (int chan = 1; chan < 3; ++chan, buf += num) {
-			int planes = count_planes(buf, num);
-			put_vli(bits, planes);
-			for (int plane = planes-1; plane >= 0; --plane)
-				encode(bits, buf, num, plane, planes);
+	int layers_max = 24;
+	int planes[3*layers_max];
+	for (int i = 0; i < 3*layers_max; ++i)
+		planes[i] = -1;
+	for (int layers = 1; layers < layers_max; ++layers) {
+		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
+		len <= length/2 && layer < layers; len *= 2, num = len*len*cols*rows*3, ++layer) {
+			for (int chan = 0; chan < 3; ++chan, buf += num) {
+				bits_flush(bits);
+				put_bit(bits, 1);
+				if (planes[layer*3+chan] < 0)
+					put_vli(bits, planes[layer*3+chan] = count_planes(buf, num));
+				int plane = planes[layer*3+chan] - (layers-layer);
+				if (plane >= 0 && plane < planes[layer*3+chan])
+					encode(bits, buf, num, plane, planes[layer*3+chan]);
+				if (over_capacity(bits, capacity))
+					goto end;
+			}
 		}
-		if (over_capacity(bits, length, len, capacity))
-			break;
 	}
+end:
 	free(buffer);
 	int cnt = bits_count(bits);
 	int bytes = (cnt + 7) / 8;

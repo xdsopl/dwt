@@ -20,7 +20,7 @@ void transformation(float *output, float *input, int length, int lmin, int wavel
 		ihaar2d(output, input, lmin, length, 1, 1);
 }
 
-void quantization(float *output, int *input, int length, int lmin, int quant, int col, int row, int cols, int rows, int chan, int chans)
+void quantization(float *output, int *input, int *planes, int length, int lmin, int quant, int col, int row, int cols, int rows, int chan, int chans)
 {
 	for (int y = 0, *in = input+(lmin/2)*(lmin/2)*(cols*(rows*chan+row)+col); y < lmin/2; ++y) {
 		for (int x = 0; x < lmin/2; ++x) {
@@ -30,7 +30,7 @@ void quantization(float *output, int *input, int length, int lmin, int quant, in
 		}
 	}
 	input += (lmin/2) * (lmin/2) * cols * rows * chans;
-	for (int len = lmin/2; len <= length/2; input += 3*len*len*cols*rows*chans, len *= 2) {
+	for (int len = lmin/2; len <= length/2; input += 3*len*len*cols*rows*chans, len *= 2, planes += chans) {
 		for (int yoff = 0, *in = input+3*len*len*(cols*(rows*chan+row)+col); yoff < len*2; yoff += len) {
 			for (int xoff = !yoff * len; xoff < len*2; xoff += len) {
 				for (int i = 0; i < len*len; ++i) {
@@ -41,6 +41,8 @@ void quantization(float *output, int *input, int length, int lmin, int quant, in
 					else if (v > 0.f)
 						v += bias;
 					v /= 1 << quant;
+					if (*planes <= 0)
+						v = 0;
 					struct position pos = hilbert(len, i);
 					output[length*(yoff+pos.y)+xoff+pos.x] = v;
 				}
@@ -73,16 +75,18 @@ void copy(float *output, float *input, int width, int height, int length, int co
 				output[(width*y+x)*stride] = flerpf(output[(width*y+x)*stride], input[length*j+i], fclampf(i/(2.f*xoff), 0.f, 1.f) * fclampf(j/(2.f*yoff), 0.f, 1.f));
 }
 
-void decode(struct bits_reader *bits, int *val, int num, int plane, int planes)
+void decode(struct bits_reader *bits, int *val, int num, int plane)
 {
 	for (int i = get_vli(bits); i < num; i += get_vli(bits) + 1)
 		val[i] |= 1 << plane;
-	if (!plane) {
-		int mask = 1 << (planes - 1);
-		for (int i = 0; i < num; ++i)
-			if (val[i] & mask)
-				val[i] ^= ~mask;
-	}
+}
+
+void finalize(int *val, int num, int planes)
+{
+	int mask = 1 << (planes - 1);
+	for (int i = 0; i < num; ++i)
+		if (val[i] & mask)
+			val[i] ^= ~mask;
 }
 
 void decode_root(struct bits_reader *bits, int *val, int num)
@@ -122,21 +126,30 @@ int main(int argc, char **argv)
 		buffer[i] = 0;
 	for (int chan = 0, num = (lmin/2)*(lmin/2)*cols*rows; chan < 3; ++chan)
 		decode_root(bits, buffer+num*chan, num);
-	for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num; len <= length/2; len *= 2, num = len*len*cols*rows*3) {
-		if (!get_bit(bits))
-			break;
-		int planes = get_vli(bits);
-		for (int plane = planes-1; plane >= 0; --plane)
-			decode(bits, buf, num, plane, planes);
-		buf += num;
-		if (!get_bit(bits))
-			break;
-		for (int chan = 1; chan < 3; ++chan, buf += num) {
-			int planes = get_vli(bits);
-			for (int plane = planes-1; plane >= 0; --plane)
-				decode(bits, buf, num, plane, planes);
+	int layers_max = 24;
+	int planes[3*layers_max];
+	for (int i = 0; i < 3*layers_max; ++i)
+		planes[i] = -1;
+	for (int layers = 1; layers < layers_max; ++layers) {
+		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
+		len <= length/2 && layer < layers; len *= 2, num = len*len*cols*rows*3, ++layer) {
+			for (int chan = 0; chan < 3; ++chan, buf += num) {
+				if (!get_bit(bits))
+					goto end;
+				if (planes[layer*3+chan] < 0)
+					planes[layer*3+chan] = get_vli(bits);
+				int plane = planes[layer*3+chan] - (layers-layer);
+				if (plane >= 0 && plane < planes[layer*3+chan])
+					decode(bits, buf, num, plane);
+			}
 		}
 	}
+end:
+	for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
+	len <= length/2; len *= 2, num = len*len*cols*rows*3, ++layer)
+		for (int chan = 0; chan < 3; ++chan, buf += num)
+			if (planes[layer*3+chan] > 0)
+				finalize(buf, num, planes[layer*3+chan]);
 	close_reader(bits);
 	struct image *image = new_image(argv[2], width, height);
 	float *input = malloc(sizeof(float) * pixels);
@@ -144,7 +157,7 @@ int main(int argc, char **argv)
 	for (int chan = 0; chan < 3; ++chan) {
 		for (int row = 0; row < rows; ++row) {
 			for (int col = 0; col < cols; ++col) {
-				quantization(input, buffer, length, lmin, quant[chan], col, row, cols, rows, chan, 3);
+				quantization(input, buffer, planes+chan, length, lmin, quant[chan], col, row, cols, rows, chan, 3);
 				transformation(output, input, length, lmin, wavelet);
 				copy(image->buffer+chan, output, width, height, length, col, row, cols, rows, 3);
 			}
