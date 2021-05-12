@@ -20,7 +20,7 @@ void transformation(float *output, float *input, int length, int lmin, int wavel
 		ihaar2d(output, input, lmin, length, 1, 1);
 }
 
-void quantization(float *output, int *input, int *planes, int length, int lmin, int quant, int col, int row, int cols, int rows, int chan, int chans)
+void quantization(float *output, int *input, int *planes, int *missing, int length, int lmin, int quant, int col, int row, int cols, int rows, int chan, int chans)
 {
 	for (int y = 0, *in = input+(lmin/2)*(lmin/2)*(cols*(rows*chan+row)+col); y < lmin/2; ++y) {
 		for (int x = 0; x < lmin/2; ++x) {
@@ -30,12 +30,13 @@ void quantization(float *output, int *input, int *planes, int length, int lmin, 
 		}
 	}
 	input += (lmin/2) * (lmin/2) * cols * rows * chans;
-	for (int len = lmin/2; len <= length/2; input += 3*len*len*cols*rows*chans, len *= 2, planes += chans) {
+	for (int len = lmin/2; len <= length/2; input += 3*len*len*cols*rows*chans, len *= 2, planes += chans, missing += chans) {
 		for (int yoff = 0, *in = input+3*len*len*(cols*(rows*chan+row)+col); yoff < len*2; yoff += len) {
 			for (int xoff = !yoff * len; xoff < len*2; xoff += len) {
 				for (int i = 0; i < len*len; ++i) {
 					float v = *in++;
 					float bias = 0.375f;
+					bias *= 1 << *missing;
 					if (v < 0.f)
 						v -= bias;
 					else if (v > 0.f)
@@ -130,6 +131,9 @@ int main(int argc, char **argv)
 	int planes[3*layers_max];
 	for (int i = 0; i < 3*layers_max; ++i)
 		planes[i] = -1;
+	int missing[3*layers_max];
+	for (int i = 0; i < 3*layers_max; ++i)
+		missing[i] = 0;
 	for (int layers = 1; layers < layers_max; ++layers) {
 		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
 		len <= length/2 && layer < layers; len *= 2, num = len*len*cols*rows*3, ++layer) {
@@ -137,10 +141,12 @@ int main(int argc, char **argv)
 				if (!get_bit(bits))
 					goto end;
 				if (planes[layer*3+chan] < 0)
-					planes[layer*3+chan] = get_vli(bits);
+					missing[layer*3+chan] = planes[layer*3+chan] = get_vli(bits);
 				int plane = planes[layer*3+chan] - (layers-layer);
-				if (plane >= 0 && plane < planes[layer*3+chan])
+				if (plane >= 0 && plane < planes[layer*3+chan]) {
 					decode(bits, buf, num, plane);
+					--missing[layer*3+chan];
+				}
 			}
 		}
 	}
@@ -157,7 +163,7 @@ end:
 	for (int chan = 0; chan < 3; ++chan) {
 		for (int row = 0; row < rows; ++row) {
 			for (int col = 0; col < cols; ++col) {
-				quantization(input, buffer, planes+chan, length, lmin, quant[chan], col, row, cols, rows, chan, 3);
+				quantization(input, buffer, planes+chan, missing+chan, length, lmin, quant[chan], col, row, cols, rows, chan, 3);
 				transformation(output, input, length, lmin, wavelet);
 				copy(image->buffer+chan, output, width, height, length, col, row, cols, rows, 3);
 			}
