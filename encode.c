@@ -224,7 +224,7 @@ int main(int argc, char **argv)
 				put_bit(bits, 1);
 				if (planes[layer*3+chan] < 0)
 					put_vli(bits, planes[layer*3+chan] = count_planes(buf, num));
-				int plane = planes[layer*3+chan] - (layers-layer);
+				int plane = planes[layer*3] - (layers-layer);
 				if (plane >= 0 && plane < planes[layer*3+chan])
 					encode(bits, buf, num, plane, planes[layer*3+chan]);
 				if (over_capacity(bits, capacity))

@@ -142,7 +142,7 @@ int main(int argc, char **argv)
 					goto end;
 				if (planes[layer*3+chan] < 0)
 					missing[layer*3+chan] = planes[layer*3+chan] = get_vli(bits);
-				int plane = planes[layer*3+chan] - (layers-layer);
+				int plane = planes[layer*3] - (layers-layer);
 				if (plane >= 0 && plane < planes[layer*3+chan]) {
 					decode(bits, buf, num, plane);
 					--missing[layer*3+chan];
