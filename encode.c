@@ -209,9 +209,12 @@ int main(int argc, char **argv)
 		put_vli(bits, quant[chan]);
 	fprintf(stderr, "%d bits for meta data\n", bits_count(bits));
 	bits_flush(bits);
-	for (int chan = 0, num = (lmin/2)*(lmin/2)*cols*rows; chan < 3; ++chan)
-		encode_root(bits, buffer+num*chan, num);
+	int pixels_root = (lmin/2) * (lmin/2) * cols * rows;
+	for (int chan = 0; chan < 3; ++chan)
+		encode_root(bits, buffer+pixels_root*chan, pixels_root);
 	fprintf(stderr, "%d bits for root image\n", bits_count(bits));
+	int planes_max = count_planes(buffer + pixels_root * 3, 3 * (pixels * rows * cols - pixels_root));
+	put_vli(bits, planes_max);
 	int layers_max = 24;
 	int planes[3*layers_max];
 	for (int i = 0; i < 3*layers_max; ++i)
@@ -224,7 +227,7 @@ int main(int argc, char **argv)
 				put_bit(bits, 1);
 				if (planes[layer*3+chan] < 0)
 					put_vli(bits, planes[layer*3+chan] = count_planes(buf, num));
-				int plane = planes[layer*3] - (layers-layer);
+				int plane = planes_max - (layers-layer);
 				if (plane >= 0 && plane < planes[layer*3+chan])
 					encode(bits, buf, num, plane, planes[layer*3+chan]);
 				if (over_capacity(bits, capacity))

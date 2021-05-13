@@ -127,8 +127,10 @@ int main(int argc, char **argv)
 	int *buffer = malloc(sizeof(int) * 3 * pixels * rows * cols);
 	for (int i = 0; i < 3 * pixels * rows * cols; ++i)
 		buffer[i] = 0;
-	for (int chan = 0, num = (lmin/2)*(lmin/2)*cols*rows; chan < 3; ++chan)
-		decode_root(bits, buffer+num*chan, num);
+	int pixels_root = (lmin/2) * (lmin/2) * cols * rows;
+	for (int chan = 0; chan < 3; ++chan)
+		decode_root(bits, buffer+pixels_root*chan, pixels_root);
+	int planes_max = get_vli(bits);
 	int layers_max = 24;
 	int planes[3*layers_max];
 	for (int i = 0; i < 3*layers_max; ++i)
@@ -144,7 +146,7 @@ int main(int argc, char **argv)
 					goto end;
 				if (planes[layer*3+chan] < 0)
 					missing[layer*3+chan] = planes[layer*3+chan] = get_vli(bits);
-				int plane = planes[layer*3] - (layers-layer);
+				int plane = planes_max - (layers-layer);
 				if (plane >= 0 && plane < planes[layer*3+chan]) {
 					decode(bits, buf, num, plane);
 					--missing[layer*3+chan];
