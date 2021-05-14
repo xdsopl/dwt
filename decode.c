@@ -158,6 +158,9 @@ int main(int argc, char **argv)
 					--missing[layer*3+chan];
 				}
 			}
+		}
+		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
+		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
 				for (int chan = 1; chan < 3; ++chan) {
 					int init = 0;
