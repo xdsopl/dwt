@@ -44,3 +44,8 @@ Use up to ```65536``` bits of space and discard quality bits, if necessary, to s
 ./encode smpte.ppm encoded.dwt 7 5 5 1 65536
 ```
 
+### Reading
+
+* Factoring wavelet transforms into lifting steps  
+by Ingrid Daubechies and Wim Sweldens - 1996
+
