@@ -142,12 +142,17 @@ int main(int argc, char **argv)
 		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
 		len <= length/2 && layer < layers; len *= 2, num = len*len*cols*rows*3, ++layer) {
 			for (int chan = 0; chan < 3; ++chan, buf += num) {
-				if (!get_bit(bits))
-					goto end;
-				if (planes[layer*3+chan] < 0)
+				int init = 0;
+				if (planes[layer*3+chan] < 0) {
+					if (!get_bit(bits))
+						goto end;
+					init = 1;
 					missing[layer*3+chan] = planes[layer*3+chan] = get_vli(bits);
+				}
 				int plane = planes_max - (layers-layer);
 				if (plane >= 0 && plane < planes[layer*3+chan]) {
+					if (!init && !get_bit(bits))
+						goto end;
 					decode(bits, buf, num, plane);
 					--missing[layer*3+chan];
 				}

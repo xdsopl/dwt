@@ -223,13 +223,22 @@ int main(int argc, char **argv)
 		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
 		len <= length/2 && layer < layers; len *= 2, num = len*len*cols*rows*3, ++layer) {
 			for (int chan = 0; chan < 3; ++chan, buf += num) {
-				bits_flush(bits);
-				put_bit(bits, 1);
-				if (planes[layer*3+chan] < 0)
-					put_vli(bits, planes[layer*3+chan] = count_planes(buf, num));
+				int init = 0;
+				if (planes[layer*3+chan] < 0) {
+					init = 1;
+					bits_flush(bits);
+					put_bit(bits, 1);
+					planes[layer*3+chan] = count_planes(buf, num);
+					put_vli(bits, planes[layer*3+chan]);
+				}
 				int plane = planes_max - (layers-layer);
-				if (plane >= 0 && plane < planes[layer*3+chan])
+				if (plane >= 0 && plane < planes[layer*3+chan]) {
+					if (!init) {
+						bits_flush(bits);
+						put_bit(bits, 1);
+					}
 					encode(bits, buf, num, plane, planes[layer*3+chan]);
+				}
 				if (over_capacity(bits, capacity))
 					goto end;
 			}
