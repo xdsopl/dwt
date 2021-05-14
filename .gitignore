@@ -1,5 +1,6 @@
 encode
 decode
 *.ppm
+!smpte.ppm
 *.dwt
 .*.swp
