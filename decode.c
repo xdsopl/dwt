@@ -140,21 +140,38 @@ int main(int argc, char **argv)
 		missing[i] = 0;
 	for (int layers = 0; layers < layers_max; ++layers) {
 		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
-		len <= length/2 && layer <= layers; len *= 2, num = len*len*cols*rows*3, ++layer) {
-			for (int chan = 0; chan < 3; ++chan, buf += num) {
-				int init = 0;
-				if (planes[layer*3+chan] < 0) {
-					if (!get_bit(bits))
+		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
+			int init = 0;
+			int chan = 0;
+			if (planes[layer*3+chan] < 0) {
+				if (!get_bit(bits))
+					goto end;
+				init = 1;
+				missing[layer*3+chan] = planes[layer*3+chan] = get_vli(bits);
+			}
+			for (int loops = 4, loop = 0; loop < loops; ++loop) {
+				int plane = planes_max-1 - ((layers-layer)*loops+loop);
+				if (plane >= 0 && plane < planes[layer*3+chan]) {
+					if (!init && !get_bit(bits))
 						goto end;
-					init = 1;
-					missing[layer*3+chan] = planes[layer*3+chan] = get_vli(bits);
+					decode(bits, buf, num, plane);
+					--missing[layer*3+chan];
 				}
-				for (int loops = 4, loop = 0; loop < loops; ++loop) {
+			}
+			for (int loops = 4, loop = 0; loop < loops; ++loop) {
+				for (int chan = 1; chan < 3; ++chan) {
+					int init = 0;
+					if (planes[layer*3+chan] < 0) {
+						if (!get_bit(bits))
+							goto end;
+						init = 1;
+						missing[layer*3+chan] = planes[layer*3+chan] = get_vli(bits);
+					}
 					int plane = planes_max-1 - ((layers-layer)*loops+loop);
 					if (plane >= 0 && plane < planes[layer*3+chan]) {
 						if (!init && !get_bit(bits))
 							goto end;
-						decode(bits, buf, num, plane);
+						decode(bits, buf+chan*num, num, plane);
 						--missing[layer*3+chan];
 					}
 				}

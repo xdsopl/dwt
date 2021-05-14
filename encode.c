@@ -221,24 +221,45 @@ int main(int argc, char **argv)
 		planes[i] = -1;
 	for (int layers = 0; layers < layers_max; ++layers) {
 		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
-		len <= length/2 && layer <= layers; len *= 2, num = len*len*cols*rows*3, ++layer) {
-			for (int chan = 0; chan < 3; ++chan, buf += num) {
-				int init = 0;
-				if (planes[layer*3+chan] < 0) {
-					init = 1;
-					bits_flush(bits);
-					put_bit(bits, 1);
-					planes[layer*3+chan] = count_planes(buf, num);
-					put_vli(bits, planes[layer*3+chan]);
+		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
+			int init = 0;
+			int chan = 0;
+			if (planes[layer*3+chan] < 0) {
+				init = 1;
+				bits_flush(bits);
+				put_bit(bits, 1);
+				planes[layer*3+chan] = count_planes(buf, num);
+				put_vli(bits, planes[layer*3+chan]);
+			}
+			for (int loops = 4, loop = 0; loop < loops; ++loop) {
+				int plane = planes_max-1 - ((layers-layer)*loops+loop);
+				if (plane >= 0 && plane < planes[layer*3+chan]) {
+					if (!init) {
+						bits_flush(bits);
+						put_bit(bits, 1);
+					}
+					encode(bits, buf, num, plane, planes[layer*3+chan]);
 				}
-				for (int loops = 4, loop = 0; loop < loops; ++loop) {
+				if (over_capacity(bits, capacity))
+					goto end;
+			}
+			for (int loops = 4, loop = 0; loop < loops; ++loop) {
+				for (int chan = 1; chan < 3; ++chan) {
+					int init = 0;
+					if (planes[layer*3+chan] < 0) {
+						init = 1;
+						bits_flush(bits);
+						put_bit(bits, 1);
+						planes[layer*3+chan] = count_planes(buf+chan*num, num);
+						put_vli(bits, planes[layer*3+chan]);
+					}
 					int plane = planes_max-1 - ((layers-layer)*loops+loop);
 					if (plane >= 0 && plane < planes[layer*3+chan]) {
 						if (!init) {
 							bits_flush(bits);
 							put_bit(bits, 1);
 						}
-						encode(bits, buf, num, plane, planes[layer*3+chan]);
+						encode(bits, buf+chan*num, num, plane, planes[layer*3+chan]);
 					}
 					if (over_capacity(bits, capacity))
 						goto end;
