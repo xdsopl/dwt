@@ -99,14 +99,21 @@ void finalize(int *val, int num, int planes, int missing)
 			val[i] ^= ~mask;
 }
 
-void decode_root(struct bits_reader *bits, int *val, int num)
+int decode_root(struct bits_reader *bits, int *val, int num)
 {
 	int cnt = get_vli(bits);
+	if (cnt < 0)
+		return cnt;
 	for (int i = 0; cnt && i < num; ++i) {
-		read_bits(bits, val+i, cnt);
-		if (val[i] && get_bit(bits))
+		int ret = read_bits(bits, val+i, cnt);
+		if (ret)
+			return ret;
+		if (val[i] && (ret = get_bit(bits)))
 			val[i] = -val[i];
+		if (ret < 0)
+			return ret;
 	}
+	return 0;
 }
 
 int main(int argc, char **argv)
@@ -125,9 +132,12 @@ int main(int argc, char **argv)
 	int dmin = get_vli(bits);
 	int cols = get_vli(bits);
 	int rows = get_vli(bits);
+	if ((wavelet|width|height|depth|dmin|cols|rows) < 0)
+		return 1;
 	int quant[3];
 	for (int chan = 0; chan < 3; ++chan)
-		quant[chan] = get_vli(bits);
+		if ((quant[chan] = get_vli(bits)) < 0)
+			return 1;
 	int length = 1 << depth;
 	int lmin = 1 << dmin;
 	int pixels = length * length;
@@ -136,7 +146,8 @@ int main(int argc, char **argv)
 		buffer[i] = 0;
 	int pixels_root = (lmin/2) * (lmin/2) * cols * rows;
 	for (int chan = 0; chan < 3; ++chan)
-		decode_root(bits, buffer+pixels_root*chan, pixels_root);
+		if (decode_root(bits, buffer+pixels_root*chan, pixels_root))
+			return 1;
 	int layers_max = 24;
 	int planes[3*layers_max];
 	for (int i = 0; i < 3*layers_max; ++i)
