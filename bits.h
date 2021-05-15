@@ -144,11 +144,16 @@ int get_bit(struct bits_reader *bits)
 	return b;
 }
 
-void read_bits(struct bits_reader *bits, int *b, int n)
+int read_bits(struct bits_reader *bits, int *b, int n)
 {
 	int a = 0;
-	for (int i = 0; i < n; ++i)
-		a |= get_bit(bits) << i;
+	for (int i = 0; i < n; ++i) {
+		int b = get_bit(bits);
+		if (b < 0)
+			return b;
+		a |= b << i;
+	}
 	*b = a;
+	return 0;
 }
 

@@ -33,14 +33,17 @@ int put_vli(struct bits_writer *bits, int val)
 
 int get_vli(struct bits_reader *bits)
 {
-	int val = 0, cnt = 0, top = 1;
-	while (get_bit(bits)) {
+	int val = 0, cnt = 0, top = 1, ret;
+	while ((ret = get_bit(bits)) == 1) {
 		cnt += 1;
 		top = 1 << cnt;
 	}
+	if (ret < 0)
+		return ret;
 	if (cnt > 0) {
 		cnt -= 1;
-		read_bits(bits, &val, cnt);
+		if ((ret = read_bits(bits, &val, cnt)))
+			return ret;
 		val += top/2;
 	}
 	return val;

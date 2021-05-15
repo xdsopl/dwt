@@ -76,10 +76,17 @@ void copy(float *output, float *input, int width, int height, int length, int co
 				output[(width*y+x)*stride] = flerpf(output[(width*y+x)*stride], input[length*j+i], fclampf(i/(2.f*xoff), 0.f, 1.f) * fclampf(j/(2.f*yoff), 0.f, 1.f));
 }
 
-void decode(struct bits_reader *bits, int *val, int num, int plane)
+int decode(struct bits_reader *bits, int *val, int num, int plane)
 {
-	for (int i = get_vli(bits); i < num; i += get_vli(bits) + 1)
+	int ret = get_vli(bits);
+	if (ret < 0)
+		return ret;
+	for (int i = ret; i < num; i += ret + 1) {
 		val[i] |= 1 << plane;
+		if ((ret = get_vli(bits)) < 0)
+			return ret;
+	}
+	return 0;
 }
 
 void finalize(int *val, int num, int planes, int missing)
@@ -130,7 +137,6 @@ int main(int argc, char **argv)
 	int pixels_root = (lmin/2) * (lmin/2) * cols * rows;
 	for (int chan = 0; chan < 3; ++chan)
 		decode_root(bits, buffer+pixels_root*chan, pixels_root);
-	int planes_max = get_vli(bits);
 	int layers_max = 24;
 	int planes[3*layers_max];
 	for (int i = 0; i < 3*layers_max; ++i)
@@ -138,23 +144,24 @@ int main(int argc, char **argv)
 	int missing[3*layers_max];
 	for (int i = 0; i < 3*layers_max; ++i)
 		missing[i] = 0;
+	int planes_max = get_vli(bits);
+	if (planes_max <= 0)
+		goto end;
 	for (int layers = 0; layers < layers_max; ++layers) {
 		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
 		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
-			int init = 0;
 			int chan = 0;
 			if (planes[layer*3+chan] < 0) {
-				if (!get_bit(bits))
+				planes[layer*3+chan] = get_vli(bits);
+				if (planes[layer*3+chan] < 0)
 					goto end;
-				init = 1;
-				missing[layer*3+chan] = planes[layer*3+chan] = get_vli(bits);
+				missing[layer*3+chan] = planes[layer*3+chan];
 			}
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
 				int plane = planes_max-1 - ((layers-layer)*loops+loop);
 				if (plane >= 0 && plane < planes[layer*3+chan]) {
-					if (!init && !get_bit(bits))
+					if (decode(bits, buf, num, plane))
 						goto end;
-					decode(bits, buf, num, plane);
 					--missing[layer*3+chan];
 				}
 			}
@@ -163,18 +170,16 @@ int main(int argc, char **argv)
 		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
 				for (int chan = 1; chan < 3; ++chan) {
-					int init = 0;
 					if (planes[layer*3+chan] < 0) {
-						if (!get_bit(bits))
+						planes[layer*3+chan] = get_vli(bits);
+						if (planes[layer*3+chan] < 0)
 							goto end;
-						init = 1;
-						missing[layer*3+chan] = planes[layer*3+chan] = get_vli(bits);
+						missing[layer*3+chan] = planes[layer*3+chan];
 					}
 					int plane = planes_max-1 - ((layers-layer)*loops+loop);
 					if (plane >= 0 && plane < planes[layer*3+chan]) {
-						if (!init && !get_bit(bits))
+						if (decode(bits, buf+chan*num, num, plane))
 							goto end;
-						decode(bits, buf+chan*num, num, plane);
 						--missing[layer*3+chan];
 					}
 				}
@@ -182,12 +187,12 @@ int main(int argc, char **argv)
 		}
 	}
 end:
+	close_reader(bits);
 	for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
 	len <= length/2; len *= 2, num = len*len*cols*rows*3, ++layer)
 		for (int chan = 0; chan < 3; ++chan, buf += num)
 			if (planes[layer*3+chan] > 0)
 				finalize(buf, num, planes[layer*3+chan], missing[layer*3+chan]);
-	close_reader(bits);
 	struct image *image = new_image(argv[2], width, height);
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);
