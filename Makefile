@@ -6,6 +6,9 @@ all: encode decode
 test: encode decode
 	./encode input.ppm /dev/stdout | ./decode /dev/stdin output.ppm
 
+%: %.c *.h
+	$(CC) $(CFLAGS) $< $(LDLIBS) -o $@
+
 clean:
 	rm -f encode decode
 
