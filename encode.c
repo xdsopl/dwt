@@ -8,6 +8,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "cdf97.h"
 #include "dwt.h"
 #include "ppm.h"
+#include "rle.h"
 #include "vli.h"
 #include "bits.h"
 #include "hilbert.h"
@@ -61,18 +62,16 @@ void copy(float *output, float *input, int width, int height, int length, int co
 			output[length*j+i] = input[(width*(h1-abs(h1-y%(2*h1)))+w1-abs(w1-x%(2*w1)))*stride];
 }
 
-void encode(struct bits_writer *bits, int *val, int num, int plane, int planes)
+void encode(struct rle_writer *rle, int *val, int num, int plane, int planes)
 {
-	int last = 0, mask = 1 << plane;
+	int mask = 1 << plane;
 	for (int i = 0; i < num; ++i) {
-		if (val[i] & mask) {
-			put_vli(bits, i - last);
-			last = i + 1;
-			if (plane == planes-1)
-				val[i] ^= ~mask;
-		}
+		int bit = val[i] & mask;
+		put_rle(rle, bit);
+		if (bit && plane == planes-1)
+			val[i] ^= ~mask;
 	}
-	put_vli(bits, num - last);
+	rle_flush(rle);
 }
 
 int ilog2(int x)
@@ -220,6 +219,7 @@ int main(int argc, char **argv)
 	int planes[3*layers_max];
 	for (int i = 0; i < 3*layers_max; ++i)
 		planes[i] = -1;
+	struct rle_writer *rle = rle_writer(bits);
 	for (int layers = 0; layers < layers_max; ++layers) {
 		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
 		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
@@ -231,7 +231,7 @@ int main(int argc, char **argv)
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
 				int plane = planes_max-1 - ((layers-layer)*loops+loop);
 				if (plane >= 0 && plane < planes[layer*3+chan])
-					encode(bits, buf, num, plane, planes[layer*3+chan]);
+					encode(rle, buf, num, plane, planes[layer*3+chan]);
 				if (over_capacity(bits, capacity))
 					goto end;
 			}
@@ -246,7 +246,7 @@ int main(int argc, char **argv)
 					}
 					int plane = planes_max-1 - ((layers-layer)*loops+loop);
 					if (plane >= 0 && plane < planes[layer*3+chan])
-						encode(bits, buf+chan*num, num, plane, planes[layer*3+chan]);
+						encode(rle, buf+chan*num, num, plane, planes[layer*3+chan]);
 					if (over_capacity(bits, capacity))
 						goto end;
 				}
@@ -254,6 +254,7 @@ int main(int argc, char **argv)
 		}
 	}
 end:
+	delete_writer(rle);
 	free(buffer);
 	int cnt = bits_count(bits);
 	int bytes = (cnt + 7) / 8;

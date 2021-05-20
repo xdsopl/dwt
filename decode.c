@@ -8,6 +8,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "cdf97.h"
 #include "dwt.h"
 #include "ppm.h"
+#include "rle.h"
 #include "vli.h"
 #include "bits.h"
 #include "hilbert.h"
@@ -76,15 +77,16 @@ void copy(float *output, float *input, int width, int height, int length, int co
 				output[(width*y+x)*stride] = flerpf(output[(width*y+x)*stride], input[length*j+i], fclampf(i/(2.f*xoff), 0.f, 1.f) * fclampf(j/(2.f*yoff), 0.f, 1.f));
 }
 
-int decode(struct bits_reader *bits, int *val, int num, int plane)
+int decode(struct rle_reader *rle, int *val, int num, int plane)
 {
-	int ret = get_vli(bits);
-	if (ret < 0)
+	int ret = rle_start(rle);
+	if (ret)
 		return ret;
-	for (int i = ret; i < num; i += ret + 1) {
-		val[i] |= 1 << plane;
-		if ((ret = get_vli(bits)) < 0)
-			return ret;
+	for (int i = 0; i < num; ++i) {
+		int bit = get_rle(rle);
+		if (bit < 0)
+			return bit;
+		val[i] |= bit << plane;
 	}
 	return 0;
 }
@@ -155,6 +157,7 @@ int main(int argc, char **argv)
 	int missing[3*layers_max];
 	for (int i = 0; i < 3*layers_max; ++i)
 		missing[i] = 0;
+	struct rle_reader *rle = rle_reader(bits);
 	int planes_max = get_vli(bits);
 	if (planes_max <= 0)
 		goto end;
@@ -171,7 +174,7 @@ int main(int argc, char **argv)
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
 				int plane = planes_max-1 - ((layers-layer)*loops+loop);
 				if (plane >= 0 && plane < planes[layer*3+chan]) {
-					if (decode(bits, buf, num, plane))
+					if (decode(rle, buf, num, plane))
 						goto end;
 					--missing[layer*3+chan];
 				}
@@ -189,7 +192,7 @@ int main(int argc, char **argv)
 					}
 					int plane = planes_max-1 - ((layers-layer)*loops+loop);
 					if (plane >= 0 && plane < planes[layer*3+chan]) {
-						if (decode(bits, buf+chan*num, num, plane))
+						if (decode(rle, buf+chan*num, num, plane))
 							goto end;
 						--missing[layer*3+chan];
 					}
@@ -198,6 +201,7 @@ int main(int argc, char **argv)
 		}
 	}
 end:
+	delete_reader(rle);
 	close_reader(bits);
 	for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
 	len <= length/2; len *= 2, num = len*len*cols*rows*3, ++layer)
