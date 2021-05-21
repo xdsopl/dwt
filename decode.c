@@ -91,14 +91,12 @@ int decode(struct rle_reader *rle, int *val, int num, int plane)
 	return 0;
 }
 
-void finalize(int *val, int num, int planes, int missing)
+void finalize(int *val, int num, int planes)
 {
 	int mask = 1 << (planes - 1);
 	for (int i = 0; i < num; ++i)
-		if (val[i] == mask && missing)
-			val[i] = 0;
-		else if (val[i] & mask)
-			val[i] ^= ~mask;
+		if (val[i] & mask)
+			val[i] = -(val[i]^mask);
 }
 
 int decode_root(struct bits_reader *bits, int *val, int num)
@@ -207,7 +205,7 @@ end:
 	len <= length/2; len *= 2, num = len*len*cols*rows*3, ++layer)
 		for (int chan = 0; chan < 3; ++chan, buf += num)
 			if (planes[layer*3+chan] > 0)
-				finalize(buf, num, planes[layer*3+chan], missing[layer*3+chan]);
+				finalize(buf, num, planes[layer*3+chan]);
 	struct image *image = new_image(argv[2], width, height);
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);

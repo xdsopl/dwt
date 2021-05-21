@@ -69,7 +69,7 @@ void encode(struct rle_writer *rle, int *val, int num, int plane, int planes)
 		int bit = val[i] & mask;
 		put_rle(rle, bit);
 		if (bit && plane == planes-1)
-			val[i] ^= ~mask;
+			val[i] = -val[i];
 	}
 	rle_flush(rle);
 }
@@ -111,20 +111,13 @@ int over_capacity(struct bits_writer *bits, int capacity)
 
 int count_planes(int *val, int num)
 {
-	int neg = -1, pos = 0, nzo = 0;
-	for (int i = 0; i < num; ++i) {
-		nzo |= val[i];
-		if (val[i] < 0)
-			neg &= val[i];
-		else
-			pos |= val[i];
-	}
-	if (!nzo)
+	int max = 0;
+	for (int i = 0; i < num; ++i)
+		if (max < abs(val[i]))
+			max = abs(val[i]);
+	if (!max)
 		return 0;
-	int cnt = sizeof(int) * 8 - 1;
-	while (cnt >= 0 && (neg&(1<<cnt)) && !(pos&(1<<cnt)))
-		--cnt;
-	return cnt + 2;
+	return 2 + ilog2(max);
 }
 
 int main(int argc, char **argv)
