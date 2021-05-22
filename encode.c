@@ -73,7 +73,7 @@ int encode(struct rle_writer *rle, int *val, int num, int plane, int planes)
 		if (bit && plane == planes-1)
 			val[i] = -val[i];
 	}
-	return rle_flush(rle);
+	return 0;
 }
 
 int ilog2(int x)
@@ -187,33 +187,26 @@ int main(int argc, char **argv)
 	put_vli(bits, dmin);
 	put_vli(bits, cols);
 	put_vli(bits, rows);
+	int pixels_root = (lmin/2) * (lmin/2) * cols * rows;
+	int planes = count_planes(buffer + pixels_root * 3, 3 * (pixels * rows * cols - pixels_root));
+	put_vli(bits, planes);
 	for (int chan = 0; chan < 3; ++chan)
 		put_vli(bits, quant[chan]);
 	fprintf(stderr, "%d bits for meta data\n", bits_count(bits));
-	int pixels_root = (lmin/2) * (lmin/2) * cols * rows;
 	for (int chan = 0; chan < 3; ++chan)
 		encode_root(bits, buffer+pixels_root*chan, pixels_root);
 	fprintf(stderr, "%d bits for root image\n", bits_count(bits));
-	int planes_max = count_planes(buffer + pixels_root * 3, 3 * (pixels * rows * cols - pixels_root));
-	put_vli(bits, planes_max);
-	int layers_max = 24;
-	int planes[3*layers_max];
-	for (int i = 0; i < 3*layers_max; ++i)
-		planes[i] = -1;
+	int maximum = depth > planes ? depth : planes;
+	int layers_max = 2 * maximum - 1;
 	struct rle_writer *rle = rle_writer(bits);
 	for (int layers = 0; layers < layers_max; ++layers) {
 		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
 		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
-			int chan = 0;
-			if (planes[layer*3+chan] < 0) {
-				planes[layer*3+chan] = count_planes(buf, num);
-				if (put_vli(bits, planes[layer*3+chan]))
-					goto end;
-			}
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
-				int plane = planes_max-1 - ((layers-layer)*loops+loop);
-				if (plane >= 0 && plane < planes[layer*3+chan])
-					if (encode(rle, buf, num, plane, planes[layer*3+chan]))
+				int chan = 0;
+				int plane = planes-1 - ((layers-layer)*loops+loop);
+				if (plane >= 0 && plane < planes)
+					if (encode(rle, buf+chan*num, num, plane, planes))
 						goto end;
 			}
 		}
@@ -221,19 +214,15 @@ int main(int argc, char **argv)
 		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
 				for (int chan = 1; chan < 3; ++chan) {
-					if (planes[layer*3+chan] < 0) {
-						planes[layer*3+chan] = count_planes(buf+chan*num, num);
-						if (put_vli(bits, planes[layer*3+chan]))
-							goto end;
-					}
-					int plane = planes_max-1 - ((layers-layer)*loops+loop);
-					if (plane >= 0 && plane < planes[layer*3+chan])
-						if (encode(rle, buf+chan*num, num, plane, planes[layer*3+chan]))
+					int plane = planes-1 - ((layers-layer)*loops+loop);
+					if (plane >= 0 && plane < planes)
+						if (encode(rle, buf+chan*num, num, plane, planes))
 							goto end;
 				}
 			}
 		}
 	}
+	rle_flush(rle);
 end:
 	delete_writer(rle);
 	free(buffer);

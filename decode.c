@@ -21,7 +21,7 @@ void transformation(float *output, float *input, int length, int lmin, int wavel
 		ihaar2d(output, input, lmin, length, 1, 1);
 }
 
-void quantization(float *output, int *input, int *planes, int *missing, int length, int lmin, int quant, int col, int row, int cols, int rows, int chan, int chans)
+void quantization(float *output, int *input, int *missing, int length, int lmin, int quant, int col, int row, int cols, int rows, int chan, int chans)
 {
 	for (int y = 0, *in = input+(lmin/2)*(lmin/2)*(cols*(rows*chan+row)+col); y < lmin/2; ++y) {
 		for (int x = 0; x < lmin/2; ++x) {
@@ -31,7 +31,7 @@ void quantization(float *output, int *input, int *planes, int *missing, int leng
 		}
 	}
 	input += (lmin/2) * (lmin/2) * cols * rows * chans;
-	for (int len = lmin/2; len <= length/2; input += 3*len*len*cols*rows*chans, len *= 2, planes += chans, missing += chans) {
+	for (int len = lmin/2; len <= length/2; input += 3*len*len*cols*rows*chans, len *= 2, missing += chans) {
 		for (int yoff = 0, *in = input+3*len*len*(cols*(rows*chan+row)+col); yoff < len*2; yoff += len) {
 			for (int xoff = !yoff * len; xoff < len*2; xoff += len) {
 				for (int i = 0; i < len*len; ++i) {
@@ -43,8 +43,6 @@ void quantization(float *output, int *input, int *planes, int *missing, int leng
 					else if (v > 0.f)
 						v += bias;
 					v /= 1 << quant;
-					if (*planes <= 0)
-						v = 0;
 					struct position pos = hilbert(len, i);
 					output[length*(yoff+pos.y)+xoff+pos.x] = v;
 				}
@@ -79,9 +77,6 @@ void copy(float *output, float *input, int width, int height, int length, int co
 
 int decode(struct rle_reader *rle, int *val, int num, int plane)
 {
-	int ret = rle_start(rle);
-	if (ret)
-		return ret;
 	for (int i = 0; i < num; ++i) {
 		int bit = get_rle(rle);
 		if (bit < 0)
@@ -132,7 +127,8 @@ int main(int argc, char **argv)
 	int dmin = get_vli(bits);
 	int cols = get_vli(bits);
 	int rows = get_vli(bits);
-	if ((wavelet|width|height|depth|dmin|cols|rows) < 0)
+	int planes = get_vli(bits);
+	if ((wavelet|width|height|depth|dmin|cols|rows|planes) < 0)
 		return 1;
 	int quant[3];
 	for (int chan = 0; chan < 3; ++chan)
@@ -148,31 +144,22 @@ int main(int argc, char **argv)
 	for (int chan = 0; chan < 3; ++chan)
 		if (decode_root(bits, buffer+pixels_root*chan, pixels_root))
 			return 1;
-	int layers_max = 24;
-	int planes[3*layers_max];
-	for (int i = 0; i < 3*layers_max; ++i)
-		planes[i] = -1;
-	int missing[3*layers_max];
-	for (int i = 0; i < 3*layers_max; ++i)
-		missing[i] = 0;
+	int maximum = depth > planes ? depth : planes;
+	int layers_max = 2 * maximum - 1;
+	int missing[3*depth];
+	for (int i = 0; i < 3*depth; ++i)
+		missing[i] = planes;
 	struct rle_reader *rle = rle_reader(bits);
-	int planes_max = get_vli(bits);
-	if (planes_max <= 0)
+	if (rle_start(rle))
 		goto end;
 	for (int layers = 0; layers < layers_max; ++layers) {
 		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
 		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
 			int chan = 0;
-			if (planes[layer*3+chan] < 0) {
-				planes[layer*3+chan] = get_vli(bits);
-				if (planes[layer*3+chan] < 0)
-					goto end;
-				missing[layer*3+chan] = planes[layer*3+chan];
-			}
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
-				int plane = planes_max-1 - ((layers-layer)*loops+loop);
-				if (plane >= 0 && plane < planes[layer*3+chan]) {
-					if (decode(rle, buf, num, plane))
+				int plane = planes-1 - ((layers-layer)*loops+loop);
+				if (plane >= 0 && plane < planes) {
+					if (decode(rle, buf+chan*num, num, plane))
 						goto end;
 					--missing[layer*3+chan];
 				}
@@ -182,14 +169,8 @@ int main(int argc, char **argv)
 		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
 				for (int chan = 1; chan < 3; ++chan) {
-					if (planes[layer*3+chan] < 0) {
-						planes[layer*3+chan] = get_vli(bits);
-						if (planes[layer*3+chan] < 0)
-							goto end;
-						missing[layer*3+chan] = planes[layer*3+chan];
-					}
-					int plane = planes_max-1 - ((layers-layer)*loops+loop);
-					if (plane >= 0 && plane < planes[layer*3+chan]) {
+					int plane = planes-1 - ((layers-layer)*loops+loop);
+					if (plane >= 0 && plane < planes) {
 						if (decode(rle, buf+chan*num, num, plane))
 							goto end;
 						--missing[layer*3+chan];
@@ -204,15 +185,14 @@ end:
 	for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
 	len <= length/2; len *= 2, num = len*len*cols*rows*3, ++layer)
 		for (int chan = 0; chan < 3; ++chan, buf += num)
-			if (planes[layer*3+chan] > 0)
-				finalize(buf, num, planes[layer*3+chan]);
+			finalize(buf, num, planes);
 	struct image *image = new_image(argv[2], width, height);
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);
 	for (int chan = 0; chan < 3; ++chan) {
 		for (int row = 0; row < rows; ++row) {
 			for (int col = 0; col < cols; ++col) {
-				quantization(input, buffer, planes+chan, missing+chan, length, lmin, quant[chan], col, row, cols, rows, chan, 3);
+				quantization(input, buffer, missing+chan, length, lmin, quant[chan], col, row, cols, rows, chan, 3);
 				transformation(output, input, length, lmin, wavelet);
 				copy(image->buffer+chan, output, width, height, length, col, row, cols, rows, 3);
 			}
