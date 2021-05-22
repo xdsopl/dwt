@@ -205,9 +205,10 @@ int main(int argc, char **argv)
 		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
 		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
-				int chan = 0;
 				int plane = planes-1 - ((layers-layer)*loops+loop);
-				if (plane >= 0 && plane < planes)
+				if (plane < 0 || plane >= planes)
+					continue;
+				for (int chan = 0; chan < 1; ++chan)
 					if (encode(rle, buf+chan*num, num, plane, planes))
 						goto end;
 			}
@@ -215,12 +216,12 @@ int main(int argc, char **argv)
 		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
 		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
-				for (int chan = 1; chan < 3; ++chan) {
-					int plane = planes-1 - ((layers-layer)*loops+loop);
-					if (plane >= 0 && plane < planes)
-						if (encode(rle, buf+chan*num, num, plane, planes))
-							goto end;
-				}
+				int plane = planes-1 - ((layers-layer)*loops+loop);
+				if (plane < 0 || plane >= planes)
+					continue;
+				for (int chan = 1; chan < 3; ++chan)
+					if (encode(rle, buf+chan*num, num, plane, planes))
+						goto end;
 			}
 		}
 	}

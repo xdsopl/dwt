@@ -155,10 +155,11 @@ int main(int argc, char **argv)
 	for (int layers = 0; layers < layers_max; ++layers) {
 		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
 		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
-			int chan = 0;
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
 				int plane = planes-1 - ((layers-layer)*loops+loop);
-				if (plane >= 0 && plane < planes) {
+				if (plane < 0 || plane >= planes)
+					continue;
+				for (int chan = 0; chan < 1; ++chan) {
 					if (decode(rle, buf+chan*num, num, plane))
 						goto end;
 					--missing[layer*3+chan];
@@ -168,13 +169,13 @@ int main(int argc, char **argv)
 		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
 		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
+				int plane = planes-1 - ((layers-layer)*loops+loop);
+				if (plane < 0 || plane >= planes)
+					continue;
 				for (int chan = 1; chan < 3; ++chan) {
-					int plane = planes-1 - ((layers-layer)*loops+loop);
-					if (plane >= 0 && plane < planes) {
-						if (decode(rle, buf+chan*num, num, plane))
-							goto end;
-						--missing[layer*3+chan];
-					}
+					if (decode(rle, buf+chan*num, num, plane))
+						goto end;
+					--missing[layer*3+chan];
 				}
 			}
 		}
