@@ -62,16 +62,18 @@ void copy(float *output, float *input, int width, int height, int length, int co
 			output[length*j+i] = input[(width*(h1-abs(h1-y%(2*h1)))+w1-abs(w1-x%(2*w1)))*stride];
 }
 
-void encode(struct rle_writer *rle, int *val, int num, int plane, int planes)
+int encode(struct rle_writer *rle, int *val, int num, int plane, int planes)
 {
 	int mask = 1 << plane;
 	for (int i = 0; i < num; ++i) {
 		int bit = val[i] & mask;
-		put_rle(rle, bit);
+		int ret = put_rle(rle, bit);
+		if (ret)
+			return ret;
 		if (bit && plane == planes-1)
 			val[i] = -val[i];
 	}
-	rle_flush(rle);
+	return rle_flush(rle);
 }
 
 int ilog2(int x)
@@ -95,18 +97,6 @@ void encode_root(struct bits_writer *bits, int *val, int num)
 		if (val[i])
 			put_bit(bits, val[i] < 0);
 	}
-}
-
-int over_capacity(struct bits_writer *bits, int capacity)
-{
-	int cnt = bits_count(bits);
-	if (cnt > capacity) {
-		bits_discard(bits);
-		fprintf(stderr, "%d bits over capacity, discarding.\n", cnt-capacity);
-		return 1;
-	}
-	bits_flush(bits);
-	return 0;
 }
 
 int count_planes(int *val, int num)
@@ -200,12 +190,10 @@ int main(int argc, char **argv)
 	for (int chan = 0; chan < 3; ++chan)
 		put_vli(bits, quant[chan]);
 	fprintf(stderr, "%d bits for meta data\n", bits_count(bits));
-	bits_flush(bits);
 	int pixels_root = (lmin/2) * (lmin/2) * cols * rows;
 	for (int chan = 0; chan < 3; ++chan)
 		encode_root(bits, buffer+pixels_root*chan, pixels_root);
 	fprintf(stderr, "%d bits for root image\n", bits_count(bits));
-	bits_flush(bits);
 	int planes_max = count_planes(buffer + pixels_root * 3, 3 * (pixels * rows * cols - pixels_root));
 	put_vli(bits, planes_max);
 	int layers_max = 24;
@@ -219,14 +207,14 @@ int main(int argc, char **argv)
 			int chan = 0;
 			if (planes[layer*3+chan] < 0) {
 				planes[layer*3+chan] = count_planes(buf, num);
-				put_vli(bits, planes[layer*3+chan]);
+				if (put_vli(bits, planes[layer*3+chan]))
+					goto end;
 			}
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
 				int plane = planes_max-1 - ((layers-layer)*loops+loop);
 				if (plane >= 0 && plane < planes[layer*3+chan])
-					encode(rle, buf, num, plane, planes[layer*3+chan]);
-				if (over_capacity(bits, capacity))
-					goto end;
+					if (encode(rle, buf, num, plane, planes[layer*3+chan]))
+						goto end;
 			}
 		}
 		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
@@ -235,13 +223,13 @@ int main(int argc, char **argv)
 				for (int chan = 1; chan < 3; ++chan) {
 					if (planes[layer*3+chan] < 0) {
 						planes[layer*3+chan] = count_planes(buf+chan*num, num);
-						put_vli(bits, planes[layer*3+chan]);
+						if (put_vli(bits, planes[layer*3+chan]))
+							goto end;
 					}
 					int plane = planes_max-1 - ((layers-layer)*loops+loop);
 					if (plane >= 0 && plane < planes[layer*3+chan])
-						encode(rle, buf+chan*num, num, plane, planes[layer*3+chan]);
-					if (over_capacity(bits, capacity))
-						goto end;
+						if (encode(rle, buf+chan*num, num, plane, planes[layer*3+chan]))
+							goto end;
 				}
 			}
 		}

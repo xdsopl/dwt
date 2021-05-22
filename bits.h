@@ -19,10 +19,9 @@ struct bits_reader {
 struct bits_writer {
 	FILE *file;
 	char *name;
-	char *buf;
-	int cap;
+	int acc;
 	int cnt;
-	int rem;
+	int cap;
 	int num;
 };
 
@@ -51,12 +50,9 @@ struct bits_writer *bits_writer(char *name, int capacity)
 	struct bits_writer *bits = malloc(sizeof(struct bits_writer));
 	bits->file = file;
 	bits->name = name;
-	bits->cap = (capacity + 7) / 8;
-	bits->buf = malloc(bits->cap);
-	for (int i = 0; i < bits->cap; ++i)
-		bits->buf[i] = 0;
+	bits->acc = 0;
 	bits->cnt = 0;
-	bits->rem = 0;
+	bits->cap = capacity;
 	bits->num = 0;
 	return bits;
 }
@@ -64,31 +60,6 @@ struct bits_writer *bits_writer(char *name, int capacity)
 int bits_count(struct bits_writer *bits)
 {
 	return bits->num * 8 + bits->cnt;
-}
-
-void bits_flush(struct bits_writer *bits)
-{
-	for (int i = 0; i < bits->cnt/8; ++i) {
-		int c = bits->buf[i] & 255;
-		bits->buf[i] = 0;
-		bits->num += 1;
-		if (c != fputc(c, bits->file))
-			fprintf(stderr, "could not write to file \"%s\".\n", bits->name);
-	}
-	bits->rem = bits->cnt % 8;
-	if (bits->rem && bits->cnt/8) {
-		bits->buf[0] = bits->buf[bits->cnt/8];
-		bits->buf[bits->cnt/8] = 0;
-	}
-	bits->cnt = bits->rem;
-}
-
-void bits_discard(struct bits_writer *bits)
-{
-	bits->buf[0] &= (1 << bits->rem) - 1;
-	for (int i = 1; i < (bits->cnt+7)/8; ++i)
-		bits->buf[i] = 0;
-	bits->cnt = bits->rem;
 }
 
 void close_reader(struct bits_reader *bits)
@@ -99,21 +70,27 @@ void close_reader(struct bits_reader *bits)
 
 void close_writer(struct bits_writer *bits)
 {
-	bits_flush(bits);
-	int c = bits->buf[0] & 255;
-	if (bits->rem && c != fputc(c, bits->file))
+	if (bits->cnt && bits->acc != fputc(bits->acc, bits->file))
 		fprintf(stderr, "could not write to file \"%s\".\n", bits->name);
 	fclose(bits->file);
-	free(bits->buf);
 	free(bits);
 }
 
 int put_bit(struct bits_writer *bits, int b)
 {
-	if (bits->cnt >= bits->cap * 8)
-		return 1;
-	bits->buf[bits->cnt/8] |= !!b << bits->cnt%8;
-	bits->cnt += 1;
+	if (bits->num * 8 + bits->cnt >= bits->cap)
+		return -2;
+	bits->acc |= !!b << bits->cnt++;
+	if (bits->cnt >= 8) {
+		bits->cnt -= 8;
+		bits->num += 1;
+		int c = bits->acc & 255;
+		bits->acc >>= 8;
+		if (c != fputc(c, bits->file)) {
+			fprintf(stderr, "could not write to file \"%s\".\n", bits->name);
+			return -1;
+		}
+	}
 	return 0;
 }
 
