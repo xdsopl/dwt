@@ -192,10 +192,12 @@ int main(int argc, char **argv)
 	put_vli(bits, planes);
 	for (int chan = 0; chan < 3; ++chan)
 		put_vli(bits, quant[chan]);
-	fprintf(stderr, "%d bits for meta data\n", bits_count(bits));
+	int meta_data = bits_count(bits);
+	fprintf(stderr, "%d bits for meta data\n", meta_data);
 	for (int chan = 0; chan < 3; ++chan)
 		encode_root(bits, buffer+pixels_root*chan, pixels_root);
-	fprintf(stderr, "%d bits for root image\n", bits_count(bits));
+	int root_image = bits_count(bits);
+	fprintf(stderr, "%d bits for root image\n", root_image - meta_data);
 	int maximum = depth > planes ? depth : planes;
 	int layers_max = 2 * maximum - 1;
 	struct rle_writer *rle = rle_writer(bits);
