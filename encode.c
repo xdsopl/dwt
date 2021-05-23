@@ -21,18 +21,18 @@ void transformation(float *output, float *input, int length, int lmin, int wavel
 		haar2d(output, input, lmin, length, 1, 1);
 }
 
-void quantization(int *output, float *input, int length, int lmin, int quant, int col, int row, int cols, int rows, int chan, int chans)
+void quantization(int *output, float *input, int length, int lmin, int quant, int col, int row, int cols, int rows)
 {
-	for (int y = 0, *out = output+(lmin/2)*(lmin/2)*(cols*(rows*chan+row)+col); y < lmin/2; ++y) {
+	for (int y = 0, *out = output+(lmin/2)*(lmin/2)*(cols*row+col); y < lmin/2; ++y) {
 		for (int x = 0; x < lmin/2; ++x) {
 			float v = input[length*y+x];
 			v *= 1 << quant;
 			*out++ = nearbyintf(v);
 		}
 	}
-	output += (lmin/2) * (lmin/2) * cols * rows * chans;
-	for (int len = lmin/2; len <= length/2; output += 3*len*len*cols*rows*chans, len *= 2) {
-		for (int yoff = 0, *out = output+3*len*len*(cols*(rows*chan+row)+col); yoff < len*2; yoff += len) {
+	output += (lmin/2) * (lmin/2) * cols * rows;
+	for (int len = lmin/2; len <= length/2; output += 3*len*len*cols*rows, len *= 2) {
+		for (int yoff = 0, *out = output+3*len*len*(cols*row+col); yoff < len*2; yoff += len) {
 			for (int xoff = !yoff * len; xoff < len*2; xoff += len) {
 				for (int i = 0; i < len*len; ++i) {
 					struct position pos = hilbert(len, i);
@@ -170,13 +170,17 @@ int main(int argc, char **argv)
 			for (int col = 0; col < cols; ++col) {
 				copy(input, image->buffer+chan, width, height, length, col, row, cols, rows, 3);
 				transformation(output, input, length, lmin, wavelet);
-				quantization(buffer, output, length, lmin, quant[chan], col, row, cols, rows, chan, 3);
+				quantization(buffer+chan*pixels*rows*cols, output, length, lmin, quant[chan], col, row, cols, rows);
 			}
 		}
 	}
 	delete_image(image);
 	free(input);
 	free(output);
+	int pixels_root = (lmin/2) * (lmin/2) * cols * rows;
+	int planes[3];
+	for (int chan = 0; chan < 3; ++chan)
+		planes[chan] = count_planes(buffer+chan*pixels*rows*cols+pixels_root, pixels*rows*cols-pixels_root);
 	struct bits_writer *bits = bits_writer(argv[2], capacity);
 	if (!bits)
 		return 1;
@@ -187,41 +191,46 @@ int main(int argc, char **argv)
 	put_vli(bits, dmin);
 	put_vli(bits, cols);
 	put_vli(bits, rows);
-	int pixels_root = (lmin/2) * (lmin/2) * cols * rows;
-	int planes = count_planes(buffer + pixels_root * 3, 3 * (pixels * rows * cols - pixels_root));
-	put_vli(bits, planes);
 	for (int chan = 0; chan < 3; ++chan)
 		put_vli(bits, quant[chan]);
 	int meta_data = bits_count(bits);
 	fprintf(stderr, "%d bits for meta data\n", meta_data);
 	for (int chan = 0; chan < 3; ++chan)
-		encode_root(bits, buffer+pixels_root*chan, pixels_root);
+		encode_root(bits, buffer+chan*pixels*rows*cols, pixels_root);
 	int root_image = bits_count(bits);
 	fprintf(stderr, "%d bits for root image\n", root_image - meta_data);
-	int maximum = depth > planes ? depth : planes;
+	for (int chan = 0; chan < 3; ++chan)
+		put_vli(bits, planes[chan]);
+	int planes_max = 0;
+	for (int chan = 0; chan < 3; ++chan)
+		if (planes_max < planes[chan])
+			planes_max = planes[chan];
+	int maximum = depth > planes_max ? depth : planes_max;
 	int layers_max = 2 * maximum - 1;
 	struct rle_writer *rle = rle_writer(bits);
 	for (int layers = 0; layers < layers_max; ++layers) {
-		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
-		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
+		for (int len = lmin/2, num = len*len*cols*rows, *buf = buffer+num, layer = 0;
+		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows, ++layer) {
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
-				int plane = planes-1 - ((layers-layer)*loops+loop);
-				if (plane < 0 || plane >= planes)
-					continue;
-				for (int chan = 0; chan < 1; ++chan)
-					if (encode(rle, buf+chan*num, num, plane, planes))
+				for (int chan = 0; chan < 1; ++chan) {
+					int plane = planes_max-1 - ((layers-layer)*loops+loop);
+					if (plane < 0 || plane >= planes[chan])
+						continue;
+					if (encode(rle, buf+chan*pixels*rows*cols, 3*num, plane, planes[chan]))
 						goto end;
+				}
 			}
 		}
-		for (int len = lmin/2, num = len*len*cols*rows*3, *buf = buffer+num, layer = 0;
-		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows*3, ++layer) {
+		for (int len = lmin/2, num = len*len*cols*rows, *buf = buffer+num, layer = 0;
+		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows, ++layer) {
 			for (int loops = 4, loop = 0; loop < loops; ++loop) {
-				int plane = planes-1 - ((layers-layer)*loops+loop);
-				if (plane < 0 || plane >= planes)
-					continue;
-				for (int chan = 1; chan < 3; ++chan)
-					if (encode(rle, buf+chan*num, num, plane, planes))
+				for (int chan = 1; chan < 3; ++chan) {
+					int plane = planes_max-1 - ((layers-layer)*loops+loop);
+					if (plane < 0 || plane >= planes[chan])
+						continue;
+					if (encode(rle, buf+chan*pixels*rows*cols, 3*num, plane, planes[chan]))
 						goto end;
+				}
 			}
 		}
 	}
