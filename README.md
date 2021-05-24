@@ -46,6 +46,8 @@ Use up to ```65536``` bits of space and discard quality bits, if necessary, to s
 
 ### Reading
 
+* Run-length encodings  
+by Solomon W. Golomb - 1966
 * Factoring wavelet transforms into lifting steps  
 by Ingrid Daubechies and Wim Sweldens - 1996
 
