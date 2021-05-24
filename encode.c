@@ -84,18 +84,18 @@ int ilog2(int x)
 	return l;
 }
 
-void encode_root(struct bits_writer *bits, int *val, int num)
+void encode_root(struct vli_writer *vli, int *val, int num)
 {
 	int max = 0;
 	for (int i = 0; i < num; ++i)
 		if (max < abs(val[i]))
 			max = abs(val[i]);
 	int cnt = 1 + ilog2(max);
-	put_vli(bits, cnt);
+	put_vli(vli, cnt);
 	for (int i = 0; cnt && i < num; ++i) {
-		write_bits(bits, abs(val[i]), cnt);
+		vli_write_bits(vli, abs(val[i]), cnt);
 		if (val[i])
-			put_bit(bits, val[i] < 0);
+			vli_put_bit(vli, val[i] < 0);
 	}
 }
 
@@ -184,30 +184,31 @@ int main(int argc, char **argv)
 	struct bits_writer *bits = bits_writer(argv[2], capacity);
 	if (!bits)
 		return 1;
-	put_bit(bits, wavelet);
-	put_vli(bits, width);
-	put_vli(bits, height);
-	put_vli(bits, depth);
-	put_vli(bits, dmin);
-	put_vli(bits, cols);
-	put_vli(bits, rows);
+	struct vli_writer *vli = vli_writer(bits);
+	vli_put_bit(vli, wavelet);
+	put_vli(vli, width);
+	put_vli(vli, height);
+	put_vli(vli, depth);
+	put_vli(vli, dmin);
+	put_vli(vli, cols);
+	put_vli(vli, rows);
 	for (int chan = 0; chan < 3; ++chan)
-		put_vli(bits, quant[chan]);
+		put_vli(vli, quant[chan]);
 	int meta_data = bits_count(bits);
 	fprintf(stderr, "%d bits for meta data\n", meta_data);
 	for (int chan = 0; chan < 3; ++chan)
-		encode_root(bits, buffer+chan*pixels*rows*cols, pixels_root);
+		encode_root(vli, buffer+chan*pixels*rows*cols, pixels_root);
 	int root_image = bits_count(bits);
 	fprintf(stderr, "%d bits for root image\n", root_image - meta_data);
 	for (int chan = 0; chan < 3; ++chan)
-		put_vli(bits, planes[chan]);
+		put_vli(vli, planes[chan]);
 	int planes_max = 0;
 	for (int chan = 0; chan < 3; ++chan)
 		if (planes_max < planes[chan])
 			planes_max = planes[chan];
 	int maximum = depth > planes_max ? depth : planes_max;
 	int layers_max = 2 * maximum - 1;
-	struct rle_writer *rle = rle_writer(bits);
+	struct rle_writer *rle = rle_writer(vli);
 	for (int layers = 0; layers < layers_max; ++layers) {
 		for (int len = lmin/2, num = len*len*cols*rows, *buf = buffer+num, layer = 0;
 		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows, ++layer) {
@@ -236,7 +237,8 @@ int main(int argc, char **argv)
 	}
 	rle_flush(rle);
 end:
-	delete_writer(rle);
+	delete_rle_writer(rle);
+	delete_vli_writer(vli);
 	free(buffer);
 	int cnt = bits_count(bits);
 	int bytes = (cnt + 7) / 8;

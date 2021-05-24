@@ -94,16 +94,16 @@ void finalize(int *val, int num, int planes)
 			val[i] = -(val[i]^mask);
 }
 
-int decode_root(struct bits_reader *bits, int *val, int num)
+int decode_root(struct vli_reader *vli, int *val, int num)
 {
-	int cnt = get_vli(bits);
+	int cnt = get_vli(vli);
 	if (cnt < 0)
 		return cnt;
 	for (int i = 0; cnt && i < num; ++i) {
-		int ret = read_bits(bits, val+i, cnt);
+		int ret = vli_read_bits(vli, val+i, cnt);
 		if (ret)
 			return ret;
-		if (val[i] && (ret = get_bit(bits)))
+		if (val[i] && (ret = vli_get_bit(vli)))
 			val[i] = -val[i];
 		if (ret < 0)
 			return ret;
@@ -120,18 +120,19 @@ int main(int argc, char **argv)
 	struct bits_reader *bits = bits_reader(argv[1]);
 	if (!bits)
 		return 1;
-	int wavelet = get_bit(bits);
-	int width = get_vli(bits);
-	int height = get_vli(bits);
-	int depth = get_vli(bits);
-	int dmin = get_vli(bits);
-	int cols = get_vli(bits);
-	int rows = get_vli(bits);
+	struct vli_reader *vli = vli_reader(bits);
+	int wavelet = vli_get_bit(vli);
+	int width = get_vli(vli);
+	int height = get_vli(vli);
+	int depth = get_vli(vli);
+	int dmin = get_vli(vli);
+	int cols = get_vli(vli);
+	int rows = get_vli(vli);
 	if ((wavelet|width|height|depth|dmin|cols|rows) < 0)
 		return 1;
 	int quant[3];
 	for (int chan = 0; chan < 3; ++chan)
-		if ((quant[chan] = get_vli(bits)) < 0)
+		if ((quant[chan] = get_vli(vli)) < 0)
 			return 1;
 	int length = 1 << depth;
 	int lmin = 1 << dmin;
@@ -141,11 +142,11 @@ int main(int argc, char **argv)
 		buffer[i] = 0;
 	int pixels_root = (lmin/2) * (lmin/2) * cols * rows;
 	for (int chan = 0; chan < 3; ++chan)
-		if (decode_root(bits, buffer+chan*pixels*rows*cols, pixels_root))
+		if (decode_root(vli, buffer+chan*pixels*rows*cols, pixels_root))
 			return 1;
 	int planes[3];
 	for (int chan = 0; chan < 3; ++chan)
-		if ((planes[chan] = get_vli(bits)) < 0)
+		if ((planes[chan] = get_vli(vli)) < 0)
 			return 1;
 	int planes_max = 0;
 	for (int chan = 0; chan < 3; ++chan)
@@ -157,7 +158,7 @@ int main(int argc, char **argv)
 	for (int chan = 0; chan < 3; ++chan)
 		for (int i = 0; i < depth; ++i)
 			missing[chan*depth+i] = planes[chan];
-	struct rle_reader *rle = rle_reader(bits);
+	struct rle_reader *rle = rle_reader(vli);
 	if (rle_start(rle))
 		goto end;
 	for (int layers = 0; layers < layers_max; ++layers) {
@@ -189,7 +190,8 @@ int main(int argc, char **argv)
 		}
 	}
 end:
-	delete_reader(rle);
+	delete_rle_reader(rle);
+	delete_vli_reader(vli);
 	close_reader(bits);
 	for (int chan = 0; chan < 3; ++chan)
 		finalize(buffer+chan*pixels*rows*cols+pixels_root, pixels*rows*cols-pixels_root, planes[chan]);
