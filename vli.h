@@ -1,5 +1,5 @@
 /*
-Variable length integer coding
+Variable length integer Rice coding
 
 Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 */
@@ -10,16 +10,19 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 struct vli_reader {
 	struct bits_reader *bits;
+	int order;
 };
 
 struct vli_writer {
 	struct bits_writer *bits;
+	int order;
 };
 
 struct vli_reader *vli_reader(struct bits_reader *bits)
 {
 	struct vli_reader *vli = malloc(sizeof(struct vli_reader));
 	vli->bits = bits;
+	vli->order = 0;
 	return vli;
 }
 
@@ -27,6 +30,7 @@ struct vli_writer *vli_writer(struct bits_writer *bits)
 {
 	struct vli_writer *vli = malloc(sizeof(struct vli_writer));
 	vli->bits = bits;
+	vli->order = 0;
 	return vli;
 }
 
@@ -62,42 +66,37 @@ int vli_read_bits(struct vli_reader *vli, int *b, int n)
 
 int put_vli(struct vli_writer *vli, int val)
 {
-	int cnt = 0, top = 1;
-	while (top <= val) {
-		cnt += 1;
-		top = 1 << cnt;
-		int ret = put_bit(vli->bits, 1);
-		if (ret)
+	int ret;
+	while (val >= 1 << vli->order) {
+		if ((ret = put_bit(vli->bits, 0)))
 			return ret;
+		val -= 1 << vli->order;
+		vli->order += 1;
 	}
-	int ret = put_bit(vli->bits, 0);
-	if (ret)
+	if ((ret = put_bit(vli->bits, 1)))
 		return ret;
-	if (cnt > 0) {
-		cnt -= 1;
-		val -= top/2;
-		int ret = write_bits(vli->bits, val, cnt);
-		if (ret)
-			return ret;
-	}
+	if ((ret = write_bits(vli->bits, val, vli->order)))
+		return ret;
+	vli->order -= 2;
+	if (vli->order < 0)
+		vli->order = 0;
 	return 0;
 }
 
 int get_vli(struct vli_reader *vli)
 {
-	int val = 0, cnt = 0, top = 1, ret;
-	while ((ret = get_bit(vli->bits)) == 1) {
-		cnt += 1;
-		top = 1 << cnt;
+	int val, sum = 0, ret;
+	while ((ret = get_bit(vli->bits)) == 0) {
+		sum += 1 << vli->order;
+		vli->order += 1;
 	}
 	if (ret < 0)
 		return ret;
-	if (cnt > 0) {
-		cnt -= 1;
-		if ((ret = read_bits(vli->bits, &val, cnt)))
-			return ret;
-		val += top/2;
-	}
-	return val;
+	if ((ret = read_bits(vli->bits, &val, vli->order)))
+		return ret;
+	vli->order -= 2;
+	if (vli->order < 0)
+		vli->order = 0;
+	return val + sum;
 }
 
