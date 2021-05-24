@@ -76,14 +76,6 @@ int encode(struct rle_writer *rle, int *val, int num, int plane, int planes)
 	return 0;
 }
 
-int ilog2(int x)
-{
-	int l = -1;
-	for (; x > 0; x /= 2)
-		++l;
-	return l;
-}
-
 void encode_root(struct vli_writer *vli, int *val, int num)
 {
 	int max = 0;

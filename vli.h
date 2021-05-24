@@ -1,5 +1,5 @@
 /*
-Variable length integer coding
+Variable length integer exponential-Golomb coding
 
 Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 */
@@ -60,44 +60,34 @@ int vli_read_bits(struct vli_reader *vli, int *b, int n)
 	return read_bits(vli->bits, b, n);
 }
 
+int ilog2(int x)
+{
+	int l = -1;
+	for (; x > 0; x /= 2)
+		++l;
+	return l;
+}
+
 int put_vli(struct vli_writer *vli, int val)
 {
-	int cnt = 0, top = 1;
-	while (top <= val) {
-		cnt += 1;
-		top = 1 << cnt;
-		int ret = put_bit(vli->bits, 1);
-		if (ret)
-			return ret;
-	}
-	int ret = put_bit(vli->bits, 0);
-	if (ret)
+	int cnt = ilog2(++val), ret;
+	if ((ret = write_bits(vli->bits, 0, cnt)))
 		return ret;
-	if (cnt > 0) {
-		cnt -= 1;
-		val -= top/2;
-		int ret = write_bits(vli->bits, val, cnt);
-		if (ret)
-			return ret;
-	}
-	return 0;
+	if ((ret = put_bit(vli->bits, 1)))
+		return ret;
+	return write_bits(vli->bits, val, cnt);
 }
 
 int get_vli(struct vli_reader *vli)
 {
-	int val = 0, cnt = 0, top = 1, ret;
-	while ((ret = get_bit(vli->bits)) == 1) {
-		cnt += 1;
-		top = 1 << cnt;
-	}
+	int val = 0, cnt = 0, ret;
+	while ((ret = get_bit(vli->bits)) == 0)
+		++cnt;
 	if (ret < 0)
 		return ret;
-	if (cnt > 0) {
-		cnt -= 1;
-		if ((ret = read_bits(vli->bits, &val, cnt)))
-			return ret;
-		val += top/2;
-	}
-	return val;
+	if (cnt > 0 && (ret = read_bits(vli->bits, &val, cnt)))
+		return ret;
+	val |= 1 << cnt;
+	return val - 1;
 }
 
