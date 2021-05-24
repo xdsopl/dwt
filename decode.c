@@ -120,8 +120,11 @@ int main(int argc, char **argv)
 	struct bits_reader *bits = bits_reader(argv[1]);
 	if (!bits)
 		return 1;
+	int coding = get_bit(bits);
+	if (coding != 0)
+		return 1;
 	struct vli_reader *vli = vli_reader(bits);
-	int wavelet = vli_get_bit(vli);
+	int wavelet = get_vli(vli);
 	int width = get_vli(vli);
 	int height = get_vli(vli);
 	int depth = get_vli(vli);

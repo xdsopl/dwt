@@ -184,8 +184,9 @@ int main(int argc, char **argv)
 	struct bits_writer *bits = bits_writer(argv[2], capacity);
 	if (!bits)
 		return 1;
+	put_bit(bits, 0);
 	struct vli_writer *vli = vli_writer(bits);
-	vli_put_bit(vli, wavelet);
+	put_vli(vli, wavelet);
 	put_vli(vli, width);
 	put_vli(vli, height);
 	put_vli(vli, depth);
