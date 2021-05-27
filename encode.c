@@ -68,21 +68,12 @@ int encode(struct rle_writer *rle, int *val, int num, int plane)
 	int int_bits = sizeof(int) * 8;
 	int sgn_pos = int_bits - 1;
 	int sig_pos = int_bits - 2;
+	int ref_pos = int_bits - 3;
 	int sgn_mask = 1 << sgn_pos;
 	int sig_mask = 1 << sig_pos;
-	int ret = put_rle(rle, 1);
-	if (ret)
-		return ret;
+	int ref_mask = 1 << ref_pos;
 	for (int i = 0; i < num; ++i) {
-		if (val[i] & sig_mask) {
-			int bit = val[i] & bit_mask;
-			int ret = rle_put_bit(rle, bit);
-			if (ret)
-				return ret;
-		}
-	}
-	for (int i = 0; i < num; ++i) {
-		if (!(val[i] & sig_mask)) {
+		if (!(val[i] & ref_mask)) {
 			int bit = val[i] & bit_mask;
 			int ret = put_rle(rle, bit);
 			if (ret)
@@ -93,6 +84,19 @@ int encode(struct rle_writer *rle, int *val, int num, int plane)
 					return ret;
 				val[i] |= sig_mask;
 			}
+		}
+	}
+	int ret = put_rle(rle, 1);
+	if (ret)
+		return ret;
+	for (int i = 0; i < num; ++i) {
+		if (val[i] & ref_mask) {
+			int bit = val[i] & bit_mask;
+			int ret = rle_put_bit(rle, bit);
+			if (ret)
+				return ret;
+		} else if (val[i] & sig_mask) {
+			val[i] ^= sig_mask | ref_mask;
 		}
 	}
 	return 0;
@@ -127,7 +131,11 @@ int process(int *val, int num)
 	int int_bits = sizeof(int) * 8;
 	int sgn_pos = int_bits - 1;
 	int sig_pos = int_bits - 2;
-	int mix_mask = (1 << sgn_pos) | (1 << sig_pos);
+	int ref_pos = int_bits - 3;
+	int sgn_mask = 1 << sgn_pos;
+	int sig_mask = 1 << sig_pos;
+	int ref_mask = 1 << ref_pos;
+	int mix_mask = sgn_mask | sig_mask | ref_mask;
 	for (int i = 0; i < num; ++i) {
 		int sgn = val[i] < 0;
 		int mag = abs(val[i]);

@@ -80,22 +80,11 @@ int decode(struct rle_reader *rle, int *val, int num, int plane)
 	int int_bits = sizeof(int) * 8;
 	int sgn_pos = int_bits - 1;
 	int sig_pos = int_bits - 2;
+	int ref_pos = int_bits - 3;
 	int sig_mask = 1 << sig_pos;
-	int ret = get_rle(rle);
-	if (ret < 0)
-		return ret;
-	if (ret != 1)
-		return -1;
+	int ref_mask = 1 << ref_pos;
 	for (int i = 0; i < num; ++i) {
-		if (val[i] & sig_mask) {
-			int bit = rle_get_bit(rle);
-			if (bit < 0)
-				return bit;
-			val[i] |= bit << plane;
-		}
-	}
-	for (int i = 0; i < num; ++i) {
-		if (!(val[i] & sig_mask)) {
+		if (!(val[i] & ref_mask)) {
 			int bit = get_rle(rle);
 			if (bit < 0)
 				return bit;
@@ -108,6 +97,21 @@ int decode(struct rle_reader *rle, int *val, int num, int plane)
 			}
 		}
 	}
+	int ret = get_rle(rle);
+	if (ret < 0)
+		return ret;
+	if (ret != 1)
+		return -1;
+	for (int i = 0; i < num; ++i) {
+		if (val[i] & ref_mask) {
+			int bit = rle_get_bit(rle);
+			if (bit < 0)
+				return bit;
+			val[i] |= bit << plane;
+		} else if (val[i] & sig_mask) {
+			val[i] ^= sig_mask | ref_mask;
+		}
+	}
 	return 0;
 }
 
@@ -116,10 +120,12 @@ void process(int *val, int num)
 	int int_bits = sizeof(int) * 8;
 	int sgn_pos = int_bits - 1;
 	int sig_pos = int_bits - 2;
+	int ref_pos = int_bits - 3;
 	int sgn_mask = 1 << sgn_pos;
 	int sig_mask = 1 << sig_pos;
+	int ref_mask = 1 << ref_pos;
 	for (int i = 0; i < num; ++i) {
-		val[i] &= ~sig_mask;
+		val[i] &= ~(sig_mask|ref_mask);
 		if (val[i] & sgn_mask)
 			val[i] = -(val[i]^sgn_mask);
 	}
