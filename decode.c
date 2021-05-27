@@ -162,8 +162,6 @@ int main(int argc, char **argv)
 		for (int i = 0; i < depth; ++i)
 			missing[chan*depth+i] = planes[chan];
 	struct rle_reader *rle = rle_reader(vli);
-	if (rle_start(rle))
-		goto end;
 	for (int layers = 0; layers < layers_max; ++layers) {
 		for (int len = lmin/2, num = len*len*cols*rows, *buf = buffer+num, layer = 0;
 		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows, ++layer) {

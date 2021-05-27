@@ -39,17 +39,9 @@ int rle_flush(struct rle_writer *rle)
 	return rle->cnt = put_vli(rle->vli, rle->cnt);
 }
 
-int rle_start(struct rle_reader *rle)
-{
-	rle->cnt = get_vli(rle->vli);
-	if (rle->cnt < 0)
-		return rle->cnt;
-	return 0;
-}
-
 void delete_rle_reader(struct rle_reader *rle)
 {
-	if (rle->cnt > 0)
+	if (rle->cnt > 1)
 		fprintf(stderr, "%d zeros not read.\n", rle->cnt);
 	free(rle);
 }
@@ -59,6 +51,16 @@ void delete_rle_writer(struct rle_writer *rle)
 	if (rle->cnt > 0)
 		fprintf(stderr, "forgot to flush counter for %d zeros.\n", rle->cnt);
 	free(rle);
+}
+
+int rle_put_bit(struct rle_writer *rle, int bit)
+{
+	return vli_put_bit(rle->vli, bit);
+}
+
+int rle_get_bit(struct rle_reader *rle)
+{
+	return vli_get_bit(rle->vli);
 }
 
 int put_rle(struct rle_writer *rle, int b)
@@ -75,11 +77,12 @@ int get_rle(struct rle_reader *rle)
 {
 	if (rle->cnt < 0)
 		return rle->cnt;
-	if (rle->cnt--)
-		return 0;
-	rle->cnt = get_vli(rle->vli);
-	if (rle->cnt < 0)
-		return rle->cnt;
-	return 1;
+	if (!rle->cnt) {
+		rle->cnt = get_vli(rle->vli);
+		if (rle->cnt < 0)
+			return rle->cnt;
+		return !rle->cnt;
+	}
+	return rle->cnt-- == 1;
 }
 
