@@ -77,21 +77,37 @@ void copy(float *output, float *input, int width, int height, int length, int co
 
 int decode(struct rle_reader *rle, int *val, int num, int plane)
 {
+	int int_bits = sizeof(int) * 8;
+	int sgn_pos = int_bits - 1;
+	int sig_pos = int_bits - 2;
+	int sig_mask = 1 << sig_pos;
 	for (int i = 0; i < num; ++i) {
 		int bit = get_rle(rle);
 		if (bit < 0)
 			return bit;
 		val[i] |= bit << plane;
+		if (bit && !(val[i] & sig_mask)) {
+			int sgn = rle_get_bit(rle);
+			if (sgn < 0)
+				return sgn;
+			val[i] |= (sgn << sgn_pos) | sig_mask;
+		}
 	}
 	return 0;
 }
 
-void finalize(int *val, int num, int planes)
+void process(int *val, int num)
 {
-	int mask = 1 << (planes - 1);
-	for (int i = 0; i < num; ++i)
-		if (val[i] & mask)
-			val[i] = -(val[i]^mask);
+	int int_bits = sizeof(int) * 8;
+	int sgn_pos = int_bits - 1;
+	int sig_pos = int_bits - 2;
+	int sgn_mask = 1 << sgn_pos;
+	int sig_mask = 1 << sig_pos;
+	for (int i = 0; i < num; ++i) {
+		val[i] &= ~sig_mask;
+		if (val[i] & sgn_mask)
+			val[i] = -(val[i]^sgn_mask);
+	}
 }
 
 int decode_root(struct vli_reader *vli, int *val, int num)
@@ -195,7 +211,7 @@ end:
 	delete_vli_reader(vli);
 	close_reader(bits);
 	for (int chan = 0; chan < 3; ++chan)
-		finalize(buffer+chan*pixels*rows*cols+pixels_root, pixels*rows*cols-pixels_root, planes[chan]);
+		process(buffer+chan*pixels*rows*cols+pixels_root, pixels*rows*cols-pixels_root);
 	struct image *image = new_image(argv[2], width, height);
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);

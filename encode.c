@@ -62,16 +62,25 @@ void copy(float *output, float *input, int width, int height, int length, int co
 			output[length*j+i] = input[(width*(h1-abs(h1-y%(2*h1)))+w1-abs(w1-x%(2*w1)))*stride];
 }
 
-int encode(struct rle_writer *rle, int *val, int num, int plane, int planes)
+int encode(struct rle_writer *rle, int *val, int num, int plane)
 {
-	int mask = 1 << plane;
+	int bit_mask = 1 << plane;
+	int int_bits = sizeof(int) * 8;
+	int sgn_pos = int_bits - 1;
+	int sig_pos = int_bits - 2;
+	int sgn_mask = 1 << sgn_pos;
+	int sig_mask = 1 << sig_pos;
 	for (int i = 0; i < num; ++i) {
-		int bit = val[i] & mask;
+		int bit = val[i] & bit_mask;
 		int ret = put_rle(rle, bit);
 		if (ret)
 			return ret;
-		if (bit && plane == planes-1)
-			val[i] = -val[i];
+		if (bit && !(val[i] & sig_mask)) {
+			int ret = rle_put_bit(rle, val[i] & sgn_mask);
+			if (ret)
+				return ret;
+			val[i] |= sig_mask;
+		}
 	}
 	return 0;
 }
@@ -99,15 +108,21 @@ void encode_root(struct vli_writer *vli, int *val, int num)
 	}
 }
 
-int count_planes(int *val, int num)
+int process(int *val, int num)
 {
 	int max = 0;
-	for (int i = 0; i < num; ++i)
-		if (max < abs(val[i]))
-			max = abs(val[i]);
-	if (!max)
-		return 0;
-	return 2 + ilog2(max);
+	int int_bits = sizeof(int) * 8;
+	int sgn_pos = int_bits - 1;
+	int sig_pos = int_bits - 2;
+	int mix_mask = (1 << sgn_pos) | (1 << sig_pos);
+	for (int i = 0; i < num; ++i) {
+		int sgn = val[i] < 0;
+		int mag = abs(val[i]);
+		if (max < mag)
+			max = mag;
+		val[i] = (sgn << sgn_pos) | (mag & ~mix_mask);
+	}
+	return 1 + ilog2(max);
 }
 
 int main(int argc, char **argv)
@@ -180,7 +195,7 @@ int main(int argc, char **argv)
 	int pixels_root = (lmin/2) * (lmin/2) * cols * rows;
 	int planes[3];
 	for (int chan = 0; chan < 3; ++chan)
-		planes[chan] = count_planes(buffer+chan*pixels*rows*cols+pixels_root, pixels*rows*cols-pixels_root);
+		planes[chan] = process(buffer+chan*pixels*rows*cols+pixels_root, pixels*rows*cols-pixels_root);
 	struct bits_writer *bits = bits_writer(argv[2], capacity);
 	if (!bits)
 		return 1;
@@ -218,7 +233,7 @@ int main(int argc, char **argv)
 					int plane = planes_max-1 - ((layers-layer)*loops+loop);
 					if (plane < 0 || plane >= planes[chan])
 						continue;
-					if (encode(rle, buf+chan*pixels*rows*cols, 3*num, plane, planes[chan]))
+					if (encode(rle, buf+chan*pixels*rows*cols, 3*num, plane))
 						goto end;
 				}
 			}
@@ -230,7 +245,7 @@ int main(int argc, char **argv)
 					int plane = planes_max-1 - ((layers-layer)*loops+loop);
 					if (plane < 0 || plane >= planes[chan])
 						continue;
-					if (encode(rle, buf+chan*pixels*rows*cols, 3*num, plane, planes[chan]))
+					if (encode(rle, buf+chan*pixels*rows*cols, 3*num, plane))
 						goto end;
 				}
 			}
