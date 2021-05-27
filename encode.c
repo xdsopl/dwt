@@ -70,16 +70,29 @@ int encode(struct rle_writer *rle, int *val, int num, int plane)
 	int sig_pos = int_bits - 2;
 	int sgn_mask = 1 << sgn_pos;
 	int sig_mask = 1 << sig_pos;
+	int ret = put_rle(rle, 1);
+	if (ret)
+		return ret;
 	for (int i = 0; i < num; ++i) {
-		int bit = val[i] & bit_mask;
-		int ret = put_rle(rle, bit);
-		if (ret)
-			return ret;
-		if (bit && !(val[i] & sig_mask)) {
-			int ret = rle_put_bit(rle, val[i] & sgn_mask);
+		if (val[i] & sig_mask) {
+			int bit = val[i] & bit_mask;
+			int ret = rle_put_bit(rle, bit);
 			if (ret)
 				return ret;
-			val[i] |= sig_mask;
+		}
+	}
+	for (int i = 0; i < num; ++i) {
+		if (!(val[i] & sig_mask)) {
+			int bit = val[i] & bit_mask;
+			int ret = put_rle(rle, bit);
+			if (ret)
+				return ret;
+			if (bit) {
+				int ret = rle_put_bit(rle, val[i] & sgn_mask);
+				if (ret)
+					return ret;
+				val[i] |= sig_mask;
+			}
 		}
 	}
 	return 0;
