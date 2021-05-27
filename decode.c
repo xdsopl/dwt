@@ -97,11 +97,6 @@ int decode(struct rle_reader *rle, int *val, int num, int plane)
 			}
 		}
 	}
-	int ret = get_rle(rle);
-	if (ret < 0)
-		return ret;
-	if (ret != 1)
-		return -1;
 	for (int i = 0; i < num; ++i) {
 		if (val[i] & ref_mask) {
 			int bit = rle_get_bit(rle);

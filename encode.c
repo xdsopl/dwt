@@ -86,9 +86,6 @@ int encode(struct rle_writer *rle, int *val, int num, int plane)
 			}
 		}
 	}
-	int ret = put_rle(rle, 1);
-	if (ret)
-		return ret;
 	for (int i = 0; i < num; ++i) {
 		if (val[i] & ref_mask) {
 			int bit = val[i] & bit_mask;

@@ -53,16 +53,6 @@ void delete_rle_writer(struct rle_writer *rle)
 	free(rle);
 }
 
-int rle_put_bit(struct rle_writer *rle, int bit)
-{
-	return vli_put_bit(rle->vli, bit);
-}
-
-int rle_get_bit(struct rle_reader *rle)
-{
-	return vli_get_bit(rle->vli);
-}
-
 int put_rle(struct rle_writer *rle, int b)
 {
 	if (rle->cnt < 0)
@@ -84,5 +74,31 @@ int get_rle(struct rle_reader *rle)
 		return !rle->cnt;
 	}
 	return rle->cnt-- == 1;
+}
+
+int rle_put_bit(struct rle_writer *rle, int bit)
+{
+	if (rle->cnt < 0)
+		return rle->cnt;
+	if (rle->cnt > 0) {
+		int ret = put_rle(rle, 1);
+		if (ret)
+			return ret;
+	}
+	return vli_put_bit(rle->vli, bit);
+}
+
+int rle_get_bit(struct rle_reader *rle)
+{
+	if (rle->cnt < 0)
+		return rle->cnt;
+	if (rle->cnt > 0) {
+		int ret = get_rle(rle);
+		if (ret < 0)
+			return ret;
+		if (ret != 1)
+			return -1;
+	}
+	return vli_get_bit(rle->vli);
 }
 
