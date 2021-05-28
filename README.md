@@ -48,6 +48,8 @@ Use up to ```65536``` bits of space and discard quality bits, if necessary, to s
 
 * Run-length encodings  
 by Solomon W. Golomb - 1966
+* Image coding using wavelet transform  
+by M. Antonini, M. Barlaud, P. Mathieu and I. Daubechies - 1992
 * Factoring wavelet transforms into lifting steps  
 by Ingrid Daubechies and Wim Sweldens - 1996
 
