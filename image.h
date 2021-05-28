@@ -32,12 +32,18 @@ struct image *new_image(char *name, int width, int height)
 	return image;
 }
 
+int fourth(int x)
+{
+	int bias = 1 << (sizeof(int) * 8 - 2);
+	return (x + bias) / 4 - bias / 4;
+}
+
 void rct2rgb(int *io)
 {
 	int Y = io[0];
 	int U = io[1];
 	int V = io[2];
-	int G = Y - (U + V + 512) / 4 + 128;
+	int G = Y - fourth(U + V);
 	int R = U + G;
 	int B = V + G;
 	io[0] = R;
@@ -50,7 +56,7 @@ void rgb2rct(int *io)
 	int R = io[0];
 	int G = io[1];
 	int B = io[2];
-	int Y = (R + 2*G + B) / 4;
+	int Y = fourth(R + 2*G + B);
 	int U = R - G;
 	int V = B - G;
 	io[0] = Y;
