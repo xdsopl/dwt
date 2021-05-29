@@ -78,7 +78,7 @@ void close_writer(struct bits_writer *bits)
 
 int put_bit(struct bits_writer *bits, int b)
 {
-	if (bits->num * 8 + bits->cnt >= bits->cap)
+	if (bits->cap > 0 && bits->num * 8 + bits->cnt >= bits->cap)
 		return -2;
 	bits->acc |= !!b << bits->cnt++;
 	if (bits->cnt >= 8) {
