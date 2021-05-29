@@ -245,7 +245,7 @@ end:
 	free(output);
 	for (int i = 0; i < width * height; ++i)
 		image->buffer[3*i] += 0.5f;
-	rgb_image(image);
+	srgb_from_ycbcr(image);
 	if (!write_ppm(image))
 		return 1;
 	delete_image(image);

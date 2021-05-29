@@ -192,7 +192,7 @@ int main(int argc, char **argv)
 	int capacity = 1 << 23;
 	if (argc >= 8)
 		capacity = atoi(argv[7]);
-	ycbcr_image(image);
+	ycbcr_from_srgb(image);
 	for (int i = 0; i < width * height; ++i)
 		image->buffer[3*i] -= 0.5f;
 	float *input = malloc(sizeof(float) * pixels);

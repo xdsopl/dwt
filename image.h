@@ -37,6 +37,24 @@ float fclampf(float x, float a, float b)
 	return fminf(fmaxf(x, a), b);
 }
 
+float linear2srgb(float v)
+{
+	float K0 = 0.04045f;
+	float a = 0.055f;
+	float phi = 12.92f;
+	float gamma = 2.4f;
+	return v <= K0 / phi ? v * phi : (1.0f + a) * powf(v, 1.0f / gamma) - a;
+}
+
+float srgb2linear(float v)
+{
+	float K0 = 0.04045f;
+	float a = 0.055f;
+	float phi = 12.92f;
+	float gamma = 2.4f;
+	return v <= K0 ? v / phi : powf((v + a) / (1.0f + a), gamma);
+}
+
 void ycbcr2rgb(float *io)
 {
 	float WR = 0.2126f;
@@ -63,15 +81,45 @@ void rgb2ycbcr(float *io)
 	io[2] = fclampf(VMAX / (1.0f - WR) * (r - io[0]), -VMAX, VMAX);
 }
 
-void ycbcr_image(struct image *image)
+void srgb_from_linear(struct image *image)
+{
+	for (int i = 0; i < 3 * image->total; i++)
+		image->buffer[i] = 255.f * linear2srgb(fclampf(image->buffer[i], 0.f, 1.f));
+}
+
+void linear_from_srgb(struct image *image)
+{
+	for (int i = 0; i < 3 * image->total; i++)
+		image->buffer[i] = srgb2linear(image->buffer[i] / 255.f);
+}
+
+void ycbcr_from_linear(struct image *image)
 {
 	for (int i = 0; i < image->total; i++)
 		rgb2ycbcr(image->buffer + 3 * i);
 }
 
-void rgb_image(struct image *image)
+void linear_from_ycbcr(struct image *image)
 {
 	for (int i = 0; i < image->total; i++)
 		ycbcr2rgb(image->buffer + 3 * i);
+}
+
+void ycbcr_from_srgb(struct image *image)
+{
+	for (int i = 0; i < image->total; i++) {
+		for (int j = 0; j < 3; j++)
+			image->buffer[3*i+j] = srgb2linear(image->buffer[3*i+j] / 255.f);
+		rgb2ycbcr(image->buffer + 3 * i);
+	}
+}
+
+void srgb_from_ycbcr(struct image *image)
+{
+	for (int i = 0; i < image->total; i++) {
+		ycbcr2rgb(image->buffer + 3 * i);
+		for (int j = 0; j < 3; j++)
+			image->buffer[3*i+j] = 255.f * linear2srgb(fclampf(image->buffer[3*i+j], 0.f, 1.f));
+	}
 }
 

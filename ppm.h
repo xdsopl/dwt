@@ -9,26 +9,7 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
 #include "image.h"
-
-float srgb(float v)
-{
-	float K0 = 0.04045f;
-	float a = 0.055f;
-	float phi = 12.92f;
-	float gamma = 2.4f;
-	return v <= K0 / phi ? v * phi : (1.0f + a) * powf(v, 1.0f / gamma) - a;
-}
-
-float linear(float v)
-{
-	float K0 = 0.04045f;
-	float a = 0.055f;
-	float phi = 12.92f;
-	float gamma = 2.4f;
-	return v <= K0 ? v / phi : powf((v + a) / (1.0f + a), gamma);
-}
 
 struct image *read_ppm(char *name)
 {
@@ -83,7 +64,7 @@ struct image *read_ppm(char *name)
 		int v = fgetc(file);
 		if (EOF == v)
 			goto eof;
-		image->buffer[i] = linear(v / 255.0f);
+		image->buffer[i] = v;
 	}
 	fclose(file);
 	return image;
@@ -107,7 +88,7 @@ int write_ppm(struct image *image)
 		return 0;
 	}
 	for (int i = 0; i < 3 * image->total; i++) {
-		if (EOF == fputc(255.f * srgb(fclampf(image->buffer[i], 0.f, 1.f)), file))
+		if (EOF == fputc(image->buffer[i], file))
 			goto eof;
 	}
 	fclose(file);
