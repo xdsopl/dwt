@@ -21,7 +21,7 @@ void transformation(float *output, float *input, int length, int lmin, int wavel
 		ihaar2d(output, input, lmin, length, 1, 1);
 }
 
-void quantization(float *output, int *input, int *missing, int length, int lmin, int quant, int col, int row, int cols, int rows)
+void quantization(float *output, int *input, int *missing, int length, int lmin, int mode, int quant, int col, int row, int cols, int rows)
 {
 	for (int y = 0, *in = input+(lmin/2)*(lmin/2)*(cols*row+col); y < lmin/2; ++y) {
 		for (int x = 0; x < lmin/2; ++x) {
@@ -38,10 +38,12 @@ void quantization(float *output, int *input, int *missing, int length, int lmin,
 					float v = *in++;
 					float bias = 0.375f;
 					bias *= 1 << *missing;
-					if (v < 0.f)
-						v -= bias;
-					else if (v > 0.f)
-						v += bias;
+					if (!mode || *missing) {
+						if (v < 0.f)
+							v -= bias;
+						else if (v > 0.f)
+							v += bias;
+					}
 					v /= 1 << quant;
 					struct position pos = hilbert(len, i);
 					output[length*(yoff+pos.y)+xoff+pos.x] = v;
@@ -156,6 +158,7 @@ int main(int argc, char **argv)
 	if (coding != 0)
 		return 1;
 	struct vli_reader *vli = vli_reader(bits);
+	int mode = get_vli(vli);
 	int wavelet = get_vli(vli);
 	int width = get_vli(vli);
 	int height = get_vli(vli);
@@ -163,7 +166,7 @@ int main(int argc, char **argv)
 	int dmin = get_vli(vli);
 	int cols = get_vli(vli);
 	int rows = get_vli(vli);
-	if ((wavelet|width|height|depth|dmin|cols|rows) < 0)
+	if ((mode|wavelet|width|height|depth|dmin|cols|rows) < 0)
 		return 1;
 	int quant[3];
 	for (int chan = 0; chan < 3; ++chan)
@@ -234,7 +237,7 @@ end:
 	for (int chan = 0; chan < 3; ++chan) {
 		for (int row = 0; row < rows; ++row) {
 			for (int col = 0; col < cols; ++col) {
-				quantization(input, buffer+chan*pixels*rows*cols, missing+chan*depth, length, lmin, quant[chan], col, row, cols, rows);
+				quantization(input, buffer+chan*pixels*rows*cols, missing+chan*depth, length, lmin, mode, quant[chan], col, row, cols, rows);
 				transformation(output, input, length, lmin, wavelet);
 				copy(image->buffer+chan, output, width, height, length, col, row, cols, rows, 3);
 			}
@@ -243,9 +246,15 @@ end:
 	free(buffer);
 	free(input);
 	free(output);
-	for (int i = 0; i < width * height; ++i)
-		image->buffer[3*i] += 0.5f;
-	srgb_from_ycbcr(image);
+	if (mode) {
+		for (int i = 0; i < width * height; ++i)
+			image->buffer[3*i] += 128.f;
+		srgb_from_rct(image);
+	} else {
+		for (int i = 0; i < width * height; ++i)
+			image->buffer[3*i] += 0.5f;
+		srgb_from_ycbcr(image);
+	}
 	if (!write_ppm(image))
 		return 1;
 	delete_image(image);

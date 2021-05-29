@@ -20,12 +20,20 @@ Watch ```decoded.ppm``` picture file in [feh](https://feh.finalrewind.org/):
 feh decoded.ppm
 ```
 
-### Adjusting quantization
+### Use different color space:
 
-Use quantization values of seven for luminance (Y'), six and seven for chrominance (Cb and Cr) instead of the default ```7 5 5``` values:
+Use the [Reversible Color Transform](https://en.wikipedia.org/wiki/JPEG_2000#Color_components_transformation) instead of the default ```0``` [YCbCr](https://en.wikipedia.org/wiki/YCbCr) color space:
 
 ```
-./encode smpte.ppm encoded.dwt 7 6 5
+./encode smpte.ppm encoded.dwt 1
+```
+
+### Limited storage capacity
+
+Use up to ```65536``` bits of space instead of the default ```0``` (no limit) and discard quality bits, if necessary, to stay below ```65536``` bits:
+
+```
+./encode smpte.ppm encoded.dwt 0 65536
 ```
 
 ### Use different wavelet
@@ -33,16 +41,18 @@ Use quantization values of seven for luminance (Y'), six and seven for chrominan
 Use the [Haar wavelet](https://en.wikipedia.org/wiki/Haar_wavelet) instead of the default ```1``` [CDF](https://en.wikipedia.org/wiki/Cohen%E2%80%93Daubechies%E2%80%93Feauveau_wavelet) 9/7 wavelet:
 
 ```
-./encode smpte.ppm encoded.dwt 7 5 5 0
+./encode smpte.ppm encoded.dwt 0 0 0
 ```
 
-### Limited storage capacity
+### Adjusting quantization
 
-Use up to ```65536``` bits of space and discard quality bits, if necessary, to stay below ```65536``` bits:
+Use quantization values of seven for luminance (Y'), six and seven for chrominance (Cb and Cr) instead of the default ```7 5 5``` values:
 
 ```
-./encode smpte.ppm encoded.dwt 7 5 5 1 65536
+./encode smpte.ppm encoded.dwt 0 0 1 7 6 5
 ```
+
+Using the [Reversible Color Transform](https://en.wikipedia.org/wiki/JPEG_2000#Color_components_transformation) disables quantization adjustment.
 
 ### Reading
 

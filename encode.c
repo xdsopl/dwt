@@ -145,8 +145,8 @@ int process(int *val, int num)
 
 int main(int argc, char **argv)
 {
-	if (argc != 3 && argc != 6 && argc != 7 && argc != 8) {
-		fprintf(stderr, "usage: %s input.ppm output.dwt [Q0 Q1 Q2] [WAVELET] [CAPACITY]\n", argv[0]);
+	if (argc != 3 && argc != 4 && argc != 5 && argc != 6 && argc != 9) {
+		fprintf(stderr, "usage: %s input.ppm output.dwt [MODE] [CAPACITY] [WAVELET] [Q0 Q1 Q2]\n", argv[0]);
 		return 1;
 	}
 	struct image *image = read_ppm(argv[1]);
@@ -182,19 +182,32 @@ int main(int argc, char **argv)
 	}
 	int pixels = length * length;
 	fprintf(stderr, "%d cols and %d rows of len %d\n", cols, rows, length);
-	int quant[3] = { 7, 5, 5 };
-	if (argc >= 6)
-		for (int chan = 0; chan < 3; ++chan)
-			quant[chan] = atoi(argv[3+chan]);
+	int mode = 0;
+	if (argc >= 4)
+		mode = atoi(argv[3]);
+	if (mode && argc >= 9)
+		return 1;
+	int capacity = 0;
+	if (argc >= 5)
+		capacity = atoi(argv[4]);
 	int wavelet = 1;
-	if (argc >= 7)
-		wavelet = atoi(argv[6]);
-	int capacity = 1 << 23;
-	if (argc >= 8)
-		capacity = atoi(argv[7]);
-	ycbcr_from_srgb(image);
-	for (int i = 0; i < width * height; ++i)
-		image->buffer[3*i] -= 0.5f;
+	if (argc >= 6)
+		wavelet = atoi(argv[5]);
+	int quant[3] = { 7, 5, 5 };
+	if (argc >= 9)
+		for (int chan = 0; chan < 3; ++chan)
+			quant[chan] = atoi(argv[6+chan]);
+	if (mode) {
+		for (int chan = 0; chan < 3; ++chan)
+			quant[chan] = 0;
+		rct_from_srgb(image);
+		for (int i = 0; i < width * height; ++i)
+			image->buffer[3*i] -= 128.f;
+	} else {
+		ycbcr_from_srgb(image);
+		for (int i = 0; i < width * height; ++i)
+			image->buffer[3*i] -= 0.5f;
+	}
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);
 	int *buffer = malloc(sizeof(int) * 3 * pixels * rows * cols);
@@ -219,6 +232,7 @@ int main(int argc, char **argv)
 		return 1;
 	put_bit(bits, 0);
 	struct vli_writer *vli = vli_writer(bits);
+	put_vli(vli, mode);
 	put_vli(vli, wavelet);
 	put_vli(vli, width);
 	put_vli(vli, height);
