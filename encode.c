@@ -162,13 +162,21 @@ int main(int argc, char **argv)
 		return 1;
 	int width = image->width;
 	int height = image->height;
+	int longer = width > height ? width : height;
 	int dmin = 2;
 	int lmin = 1 << dmin;
-	int depth = ilog2(width);
+	int depth = ilog2(longer);
+	if (longer > 1 << depth)
+		depth += 1;
 	int length = 1 << depth;
 	int cols = 1;
 	int rows = 1;
-	if (width != height || width != length) {
+	int mode = 0;
+	if (argc >= 4)
+		mode = atoi(argv[3]);
+	if (mode && argc >= 9)
+		return 1;
+	if (!mode && (width != height || width != length)) {
 		for (int best = -1, d = dmin, l = lmin; l <= width || l <= height; ++d, l *= 2) {
 			int c = (width + l - 1) / l;
 			int r = (height + l - 1) / l;
@@ -190,11 +198,6 @@ int main(int argc, char **argv)
 	}
 	int pixels = length * length;
 	fprintf(stderr, "%d cols and %d rows of len %d\n", cols, rows, length);
-	int mode = 0;
-	if (argc >= 4)
-		mode = atoi(argv[3]);
-	if (mode && argc >= 9)
-		return 1;
 	int capacity = 0;
 	if (argc >= 5)
 		capacity = atoi(argv[4]);
