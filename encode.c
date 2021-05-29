@@ -1,11 +1,12 @@
 /*
-Encoder for lossy image compression based on the discrete wavelet transformation
+Encoder for lossy and lossless image compression based on the discrete wavelet transformation
 
 Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 */
 
 #include "haar.h"
 #include "cdf97.h"
+#include "rint_haar.h"
 #include "dwt.h"
 #include "ppm.h"
 #include "rle.h"
@@ -15,10 +16,17 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 void transformation(float *output, float *input, int length, int lmin, int wavelet)
 {
-	if (wavelet)
-		dwt2d(cdf97, output, input, lmin, length, 1, 1);
-	else
+	switch (wavelet) {
+	case 0:
 		haar2d(output, input, lmin, length, 1, 1);
+		break;
+	case 1:
+		dwt2d(cdf97, output, input, lmin, length, 1, 1);
+		break;
+	case 2:
+		rint_haar2d(output, input, lmin, length, 1, 1);
+		break;
+	}
 }
 
 void quantization(int *output, float *input, int length, int lmin, int quant, int col, int row, int cols, int rows)
@@ -190,7 +198,7 @@ int main(int argc, char **argv)
 	int capacity = 0;
 	if (argc >= 5)
 		capacity = atoi(argv[4]);
-	int wavelet = 1;
+	int wavelet = mode ? 2 : 1;
 	if (argc >= 6)
 		wavelet = atoi(argv[5]);
 	int quant[3] = { 7, 5, 5 };

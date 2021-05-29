@@ -1,11 +1,12 @@
 /*
-Decoder for lossy image compression based on the discrete wavelet transformation
+Decoder for lossy and lossless image compression based on the discrete wavelet transformation
 
 Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 */
 
 #include "haar.h"
 #include "cdf97.h"
+#include "rint_haar.h"
 #include "dwt.h"
 #include "ppm.h"
 #include "rle.h"
@@ -15,10 +16,17 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 void transformation(float *output, float *input, int length, int lmin, int wavelet)
 {
-	if (wavelet)
-		idwt2d(icdf97, output, input, lmin, length, 1, 1);
-	else
+	switch (wavelet) {
+	case 0:
 		ihaar2d(output, input, lmin, length, 1, 1);
+		break;
+	case 1:
+		idwt2d(icdf97, output, input, lmin, length, 1, 1);
+		break;
+	case 2:
+		rint_ihaar2d(output, input, lmin, length, 1, 1);
+		break;
+	}
 }
 
 void quantization(float *output, int *input, int *missing, int length, int lmin, int mode, int quant, int col, int row, int cols, int rows)

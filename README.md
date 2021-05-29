@@ -1,4 +1,4 @@
-### Playing with lossy image compression based on the discrete wavelet transformation
+### Playing with lossy and lossless image compression based on the discrete wavelet transformation
 
 Quick start:
 
@@ -27,6 +27,8 @@ Use the [Reversible Color Transform](https://en.wikipedia.org/wiki/JPEG_2000#Col
 ```
 ./encode smpte.ppm encoded.dwt 1
 ```
+
+Using the [Reversible Color Transform](https://en.wikipedia.org/wiki/JPEG_2000#Color_components_transformation) disables quantization adjustment and chooses a reversible integer [Haar wavelet](https://en.wikipedia.org/wiki/Haar_wavelet) as default.
 
 ### Limited storage capacity
 
