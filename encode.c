@@ -268,12 +268,19 @@ int main(int argc, char **argv)
 	int maximum = depth > planes_max ? depth : planes_max;
 	int layers_max = 2 * maximum - 1;
 	struct rle_writer *rle = rle_writer(vli);
+	for (int loops = 2, loop = 0; loop < loops; ++loop) {
+		int plane = planes_max-1 - loop;
+		if (plane < 0 || plane >= planes[0])
+			continue;
+		if (encode(rle, buffer+pixels_root, 3*pixels_root, plane))
+			goto end;
+	}
 	for (int layers = 0; layers < layers_max; ++layers) {
 		for (int len = lmin/2, num = len*len*cols*rows, *buf = buffer+num, layer = 0;
-		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows, ++layer) {
-			for (int loops = 4, loop = 0; loop < loops; ++loop) {
+		len <= length/2 && layer <= layers+1; len *= 2, buf += 3*num, num = len*len*cols*rows, ++layer) {
+			for (int loops = 2, loop = 0; loop < loops; ++loop) {
 				for (int chan = 0; chan < 1; ++chan) {
-					int plane = planes_max-1 - ((layers-layer)*loops+loop);
+					int plane = planes_max-1 - ((layers+1-layer)*loops+loop);
 					if (plane < 0 || plane >= planes[chan])
 						continue;
 					if (encode(rle, buf+chan*pixels*rows*cols, 3*num, plane))
@@ -283,7 +290,7 @@ int main(int argc, char **argv)
 		}
 		for (int len = lmin/2, num = len*len*cols*rows, *buf = buffer+num, layer = 0;
 		len <= length/2 && layer <= layers; len *= 2, buf += 3*num, num = len*len*cols*rows, ++layer) {
-			for (int loops = 4, loop = 0; loop < loops; ++loop) {
+			for (int loops = 2, loop = 0; loop < loops; ++loop) {
 				for (int chan = 1; chan < 3; ++chan) {
 					int plane = planes_max-1 - ((layers-layer)*loops+loop);
 					if (plane < 0 || plane >= planes[chan])
