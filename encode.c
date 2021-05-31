@@ -17,7 +17,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 void transformation(float *output, float *input, int length, int lmin, int wavelet)
 {
 	void (*funcs[3])(float *, float *, int, int, int) = { haar, cdf97, rint_haar };
-	dwt2d(funcs[wavelet], output, input, lmin, length, 1, 1);
+	dwt2d(funcs[wavelet], output, input, lmin, length, length, 1, 1, length);
 }
 
 void quantization(int *output, float *input, int length, int lmin, int quant, int col, int row, int cols, int rows)

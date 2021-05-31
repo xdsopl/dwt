@@ -8,71 +8,75 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 void dwt(void (*wavelet)(float *, float *, int, int, int), float *out, float *in, int N0, int N, int SO, int SI)
 {
-	for (int l = N; l >= N0; l /= 2) {
-		wavelet(out, in, l, SO, SI);
-		for (int i = 0; i < l / 2; ++i)
-			in[i*SI] = out[i*SO];
-	}
+	wavelet(out, in, N, SO, SI);
+	int K = (N+1)/2;
+	for (int i = 0; i < K; ++i)
+		in[i*SI] = out[i*SO];
+	if (K >= N0)
+		dwt(wavelet, out, in, N0, K, SO, SI);
 }
 
 void idwt(void (*iwavelet)(float *, float *, int, int, int), float *out, float *in, int N0, int N, int SO, int SI)
 {
-	for (int l = N0; l <= N; l *= 2) {
-		iwavelet(out, in, l, SO, SI);
-		for (int i = 0; i < l; ++i)
-			in[i*SI] = out[i*SO];
-	}
-}
-
-void dwt2(void (*wavelet)(float *, float *, int, int, int), float *out, float *in, int N0, int N, int SO, int SI)
-{
+	int K = (N+1)/2;
+	if (K >= N0)
+		idwt(iwavelet, out, in, N0, K, SO, SI);
+	iwavelet(out, in, N, SO, SI);
 	for (int i = 0; i < N; ++i)
-		dwt(wavelet, out+SO*N*i, in+SI*N*i, N0, N, SO, SI);
-	for (int i = 0; i < N * N; ++i)
 		in[i*SI] = out[i*SO];
-	for (int i = 0; i < N; ++i)
-		dwt(wavelet, out+SO*i, in+SI*i, N0, N, SO*N, SI*N);
 }
 
-void idwt2(void (*iwavelet)(float *, float *, int, int, int), float *out, float *in, int N0, int N, int SO, int SI)
+void dwt2(void (*wavelet)(float *, float *, int, int, int), float *out, float *in, int N0, int W, int H, int SO, int SI)
 {
-	for (int i = 0; i < N; ++i)
-		idwt(iwavelet, out+SO*i, in+SI*i, N0, N, SO*N, SI*N);
-	for (int i = 0; i < N * N; ++i)
+	for (int i = 0; i < H; ++i)
+		dwt(wavelet, out+SO*W*i, in+SI*W*i, N0, W, SO, SI);
+	for (int i = 0; i < W * H; ++i)
 		in[i*SI] = out[i*SO];
-	for (int i = 0; i < N; ++i)
-		idwt(iwavelet, out+SO*N*i, in+SI*N*i, N0, N, SO, SI);
+	for (int i = 0; i < W; ++i)
+		dwt(wavelet, out+SO*i, in+SI*i, N0, H, SO*W, SI*W);
 }
 
-void dwt2d(void (*wavelet)(float *, float *, int, int, int), float *out, float *in, int N0, int N, int SO, int SI)
+void idwt2(void (*iwavelet)(float *, float *, int, int, int), float *out, float *in, int N0, int W, int H, int SO, int SI)
 {
-	for (int l = N; l >= N0; l /= 2) {
-		for (int j = 0; j < l; ++j) {
-			wavelet(out+SO*N*j, in+SI*N*j, l, SO, SI);
-			for (int i = 0; i < l; ++i)
-				in[(N*j+i)*SI] = out[(N*j+i)*SO];
-		}
-		for (int j = 0; j < l; ++j)
-			wavelet(out+SO*j, in+SI*j, l, SO*N, SI*N);
-		for (int j = 0; j < l / 2; ++j)
-			for (int i = 0; i < l / 2; ++i)
-				in[(j+N*i)*SI] = out[(j+N*i)*SO];
+	for (int i = 0; i < W; ++i)
+		idwt(iwavelet, out+SO*i, in+SI*i, N0, H, SO*W, SI*W);
+	for (int i = 0; i < W * H; ++i)
+		in[i*SI] = out[i*SO];
+	for (int i = 0; i < H; ++i)
+		idwt(iwavelet, out+SO*W*i, in+SI*W*i, N0, W, SO, SI);
+}
+
+void dwt2d(void (*wavelet)(float *, float *, int, int, int), float *out, float *in, int N0, int W, int H, int SO, int SI, int SW)
+{
+	for (int j = 0; j < H; ++j) {
+		wavelet(out+SO*SW*j, in+SI*SW*j, W, SO, SI);
+		for (int i = 0; i < W; ++i)
+			in[(SW*j+i)*SI] = out[(SW*j+i)*SO];
 	}
+	for (int i = 0; i < W; ++i)
+		wavelet(out+SO*i, in+SI*i, H, SO*SW, SI*SW);
+	int W2 = (W+1)/2, H2 = (H+1)/2;
+	for (int j = 0; j < H2; ++j)
+		for (int i = 0; i < W2; ++i)
+			in[(SW*j+i)*SI] = out[(SW*j+i)*SO];
+	if (W2 >= N0 && H2 >= N0)
+		dwt2d(wavelet, out, in, N0, W2, H2, SO, SI, SW);
 }
 
-void idwt2d(void (*iwavelet)(float *, float *, int, int, int), float *out, float *in, int N0, int N, int SO, int SI)
+void idwt2d(void (*iwavelet)(float *, float *, int, int, int), float *out, float *in, int N0, int W, int H, int SO, int SI, int SW)
 {
-	for (int l = N0; l <= N; l *= 2) {
-		for (int j = 0; j < l; ++j) {
-			iwavelet(out+SO*j, in+SI*j, l, SO*N, SI*N);
-			for (int i = 0; i < l; ++i)
-				in[(j+N*i)*SI] = out[(j+N*i)*SO];
-		}
-		for (int j = 0; j < l; ++j) {
-			iwavelet(out+SO*N*j, in+SI*N*j, l, SO, SI);
-			for (int i = 0; i < l; ++i)
-				in[(N*j+i)*SI] = out[(N*j+i)*SO];
-		}
+	int W2 = (W+1)/2, H2 = (H+1)/2;
+	if (W2 >= N0 && H2 >= N0)
+		idwt2d(iwavelet, out, in, N0, W2, H2, SO, SI, SW);
+	for (int i = 0; i < W; ++i)
+		iwavelet(out+SO*i, in+SI*i, H, SO*SW, SI*SW);
+	for (int j = 0; j < H; ++j)
+		for (int i = 0; i < W; ++i)
+			in[(SW*j+i)*SI] = out[(SW*j+i)*SO];
+	for (int j = 0; j < H; ++j) {
+		iwavelet(out+SO*SW*j, in+SI*SW*j, W, SO, SI);
+		for (int i = 0; i < W; ++i)
+			in[(SW*j+i)*SI] = out[(SW*j+i)*SO];
 	}
 }
 
