@@ -16,17 +16,8 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 void transformation(float *output, float *input, int length, int lmin, int wavelet)
 {
-	switch (wavelet) {
-	case 0:
-		ihaar2d(output, input, lmin, length, 1, 1);
-		break;
-	case 1:
-		idwt2d(icdf97, output, input, lmin, length, 1, 1);
-		break;
-	case 2:
-		idwt2d(rint_ihaar, output, input, lmin, length, 1, 1);
-		break;
-	}
+	void (*funcs[3])(float *, float *, int, int, int) = { ihaar, icdf97, rint_ihaar };
+	idwt2d(funcs[wavelet], output, input, lmin, length, 1, 1);
 }
 
 void quantization(float *output, int *input, int *missing, int length, int lmin, int mode, int quant, int col, int row, int cols, int rows)
