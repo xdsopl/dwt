@@ -24,7 +24,7 @@ void transformation(float *output, float *input, int length, int lmin, int wavel
 		dwt2d(cdf97, output, input, lmin, length, 1, 1);
 		break;
 	case 2:
-		rint_haar2d(output, input, lmin, length, 1, 1);
+		dwt2d(rint_haar, output, input, lmin, length, 1, 1);
 		break;
 	}
 }
