@@ -21,13 +21,12 @@ void transformation(float *output, float *input, int lmin, int width, int height
 	dwt2d(funcs[wavelet], output, input, lmin, width, height, 1, 1, width);
 }
 
-void quantization(int *output, float *input, int *widths, int *heights, int *lengths, int levels, int quant)
+void quantization(int *output, float *input, int *widths, int *heights, int *lengths, int levels)
 {
 	int width = widths[levels];
 	for (int y = 0; y < heights[0]; ++y) {
 		for (int x = 0; x < widths[0]; ++x) {
 			float v = input[width*y+x];
-			v *= 1 << quant;
 			*output++ = nearbyintf(v);
 		}
 	}
@@ -37,7 +36,6 @@ void quantization(int *output, float *input, int *widths, int *heights, int *len
 			if ((pos.x >= widths[l] || pos.y >= heights[l]) &&
 			pos.x < widths[l+1] && pos.y < heights[l+1]) {
 				float v = input[width*pos.y+pos.x];
-				v *= 1 << quant;
 				*output++ = truncf(v);
 			}
 		}
@@ -125,8 +123,8 @@ int process(int *val, int num)
 
 int main(int argc, char **argv)
 {
-	if (argc != 3 && argc != 4 && argc != 5 && argc != 6 && argc != 9) {
-		fprintf(stderr, "usage: %s input.ppm output.dwt [MODE] [CAPACITY] [WAVELET] [Q0 Q1 Q2]\n", argv[0]);
+	if (argc != 3 && argc != 4 && argc != 5) {
+		fprintf(stderr, "usage: %s input.ppm output.dwt [CAPACITY] [WAVELET]\n", argv[0]);
 		return 1;
 	}
 	struct image *image = read_ppm(argv[1]);
@@ -139,39 +137,22 @@ int main(int argc, char **argv)
 	int lengths[16], widths[16], heights[16];
 	int levels = compute_lengths(lengths, widths, heights, width, height, lmin);
 	int pixels_root = widths[0] * heights[0];
-	int mode = 0;
-	if (argc >= 4)
-		mode = atoi(argv[3]);
-	if (mode && argc >= 9)
-		return 1;
 	int capacity = 0;
+	if (argc >= 4)
+		capacity = atoi(argv[3]);
+	int wavelet = 1;
 	if (argc >= 5)
-		capacity = atoi(argv[4]);
-	int wavelet = mode ? 2 : 1;
-	if (argc >= 6)
-		wavelet = atoi(argv[5]);
-	int quant[3] = { 7, 5, 5 };
-	if (argc >= 9)
-		for (int chan = 0; chan < 3; ++chan)
-			quant[chan] = atoi(argv[6+chan]);
-	if (mode) {
-		for (int chan = 0; chan < 3; ++chan)
-			quant[chan] = 0;
-		rct_from_srgb(image);
-		for (int i = 0; i < width * height; ++i)
-			image->buffer[3*i] -= 128.f;
-	} else {
-		ycbcr_from_srgb(image);
-		for (int i = 0; i < width * height; ++i)
-			image->buffer[3*i] -= 0.5f;
-	}
+		wavelet = atoi(argv[4]);
+	rct_from_srgb(image);
+	for (int i = 0; i < width * height; ++i)
+		image->buffer[3*i] -= 128.f;
 	float *input = malloc(sizeof(float) * pixels);
 	float *output = malloc(sizeof(float) * pixels);
 	int *buffer = malloc(sizeof(int) * 3 * pixels);
 	for (int chan = 0; chan < 3; ++chan) {
 		copy(input, image->buffer+chan, width, height, 3);
 		transformation(output, input, lmin, width, height, wavelet);
-		quantization(buffer+chan*pixels, output, widths, heights, lengths, levels, quant[chan]);
+		quantization(buffer+chan*pixels, output, widths, heights, lengths, levels);
 	}
 	delete_image(image);
 	free(input);
@@ -184,13 +165,10 @@ int main(int argc, char **argv)
 		return 1;
 	put_bit(bits, 0);
 	struct vli_writer *vli = vli_writer(bits);
-	put_vli(vli, mode);
 	put_vli(vli, wavelet);
 	put_vli(vli, width);
 	put_vli(vli, height);
 	put_vli(vli, lmin);
-	for (int chan = 0; chan < 3; ++chan)
-		put_vli(vli, quant[chan]);
 	int meta_data = bits_count(bits);
 	fprintf(stderr, "%d bits for meta data\n", meta_data);
 	for (int chan = 0; chan < 3; ++chan)
