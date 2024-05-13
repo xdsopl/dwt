@@ -15,45 +15,47 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "vli.h"
 #include "bits.h"
 
-void transformation(float *output, float *input, int lmin, int width, int height, int wavelet)
+void transformation(float *output, float *input, int lmin, int width, int height, int wavelet, int channels)
 {
 	void (*funcs[3])(float *, float *, int, int, int) = { ihaar, icdf97, rint_ihaar };
-	idwt2d(funcs[wavelet], output, input, lmin, width, height, 1, 1, width);
+	for (int chan = 0; chan < channels; ++chan)
+		idwt2d(funcs[wavelet], output+chan, input+chan, lmin, width, height, channels, channels, width);
 }
 
-void quantization(float *output, int *input, int *missing, int *widths, int *heights, int *lengths, int levels, int wavelet)
+void quantization(float *output, int *input, int *missing, int *widths, int *heights, int *lengths, int levels, int wavelet, int channels)
 {
 	int width = widths[levels];
+	int height = heights[levels];
+	int pixels = width * height;
 	for (int y = 0; y < heights[0]; ++y) {
 		for (int x = 0; x < widths[0]; ++x) {
-			float v = *input++;
-			output[width*y+x] = v;
+			for (int chan = 0; chan < channels; ++chan) {
+				float v = input[chan*pixels];
+				output[channels*(width*y+x)+chan] = v;
+			}
+			++input;
 		}
 	}
 	for (int l = 0; l < levels; ++l) {
 		for (int i = 0; i < lengths[l+1] * lengths[l+1]; ++i) {
 			struct position pos = hilbert(lengths[l+1], i);
-			if ((pos.x >= widths[l] || pos.y >= heights[l]) &&
-			pos.x < widths[l+1] && pos.y < heights[l+1]) {
-				float v = *input++;
-				float bias = 0.375f;
-				bias *= 1 << missing[l];
-				if (wavelet != 2 || missing[l]) {
-					if (v < 0.f)
-						v -= bias;
-					else if (v > 0.f)
-						v += bias;
+			if ((pos.x >= widths[l] || pos.y >= heights[l]) && pos.x < widths[l+1] && pos.y < heights[l+1]) {
+				for (int chan = 0; chan < channels; ++chan) {
+					float v = input[chan*pixels];
+					float bias = 0.375f;
+					bias *= 1 << missing[chan*levels+l];
+					if (wavelet != 2 || missing[chan*levels+l]) {
+						if (v < 0.f)
+							v -= bias;
+						else if (v > 0.f)
+							v += bias;
+					}
+					output[channels*(width*pos.y+pos.x)+chan] = v;
 				}
-				output[width*pos.y+pos.x] = v;
+				++input;
 			}
 		}
 	}
-}
-
-void copy(float *output, float *input, int width, int height, int stride)
-{
-	for (int i = 0; i < width * height; ++i)
-		output[i*stride] = input[i];
 }
 
 int decode(struct rle_reader *rle, int *val, int num, int plane)
@@ -147,24 +149,25 @@ int main(int argc, char **argv)
 	int levels = compute_lengths(lengths, widths, heights, width, height, lmin);
 	int pixels_root = widths[0] * heights[0];
 	int pixels = width * height;
-	int *buffer = malloc(sizeof(int) * 3 * pixels);
-	for (int i = 0; i < 3 * pixels; ++i)
+	int channels = 3;
+	int *buffer = malloc(sizeof(int) * channels * pixels);
+	for (int i = 0; i < channels * pixels; ++i)
 		buffer[i] = 0;
-	for (int chan = 0; chan < 3; ++chan)
+	for (int chan = 0; chan < channels; ++chan)
 		if (decode_root(vli, buffer+chan*pixels, pixels_root))
 			return 1;
-	int planes[3];
-	for (int chan = 0; chan < 3; ++chan)
+	int planes[channels];
+	for (int chan = 0; chan < channels; ++chan)
 		if ((planes[chan] = get_vli(vli)) < 0)
 			return 1;
 	int planes_max = 0;
-	for (int chan = 0; chan < 3; ++chan)
+	for (int chan = 0; chan < channels; ++chan)
 		if (planes_max < planes[chan])
 			planes_max = planes[chan];
 	int maximum = levels > planes_max ? levels : planes_max;
 	int layers_max = 2 * maximum - 1;
-	int missing[3*levels];
-	for (int chan = 0; chan < 3; ++chan)
+	int missing[channels*levels];
+	for (int chan = 0; chan < channels; ++chan)
 		for (int i = 0; i < levels; ++i)
 			missing[chan*levels+i] = planes[chan];
 	struct rle_reader *rle = rle_reader(vli);
@@ -192,7 +195,7 @@ int main(int argc, char **argv)
 		num = widths[l+1] * heights[l+1] - widths[l] * heights[l];
 		l < levels && l <= layers; buf += num, ++l,
 		num = widths[l+1] * heights[l+1] - widths[l] * heights[l]) {
-			for (int chan = 1; chan < 3; ++chan) {
+			for (int chan = 1; chan < channels; ++chan) {
 				int plane = planes_max-1 - (layers-l);
 				if (plane < 0 || plane >= planes[chan])
 					continue;
@@ -206,21 +209,16 @@ end:
 	delete_rle_reader(rle);
 	delete_vli_reader(vli);
 	close_reader(bits);
-	for (int chan = 0; chan < 3; ++chan)
+	for (int chan = 0; chan < channels; ++chan)
 		process(buffer+chan*pixels+pixels_root, pixels-pixels_root);
 	struct image *image = new_image(argv[2], width, height);
-	float *input = malloc(sizeof(float) * pixels);
-	float *output = malloc(sizeof(float) * pixels);
-	for (int chan = 0; chan < 3; ++chan) {
-		quantization(input, buffer+chan*pixels, missing+chan*levels, widths, heights, lengths, levels, wavelet);
-		transformation(output, input, lmin, width, height, wavelet);
-		copy(image->buffer+chan, output, width, height, 3);
-	}
+	float *temp = malloc(sizeof(float) * channels * pixels);
+	quantization(temp, buffer, missing, widths, heights, lengths, levels, wavelet, channels);
+	transformation(image->buffer, temp, lmin, width, height, wavelet, channels);
 	free(buffer);
-	free(input);
-	free(output);
+	free(temp);
 	for (int i = 0; i < width * height; ++i)
-		image->buffer[3*i] += 128.f;
+		image->buffer[channels*i] += 128.f;
 	srgb_from_ycocg(image);
 	if (!write_ppm(image))
 		return 1;

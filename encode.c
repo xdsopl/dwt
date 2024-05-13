@@ -15,37 +15,39 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "vli.h"
 #include "bits.h"
 
-void transformation(float *output, float *input, int lmin, int width, int height, int wavelet)
+void transformation(float *output, float *input, int lmin, int width, int height, int wavelet, int channels)
 {
 	void (*funcs[3])(float *, float *, int, int, int) = { haar, cdf97, rint_haar };
-	dwt2d(funcs[wavelet], output, input, lmin, width, height, 1, 1, width);
+	for (int chan = 0; chan < channels; ++chan)
+		dwt2d(funcs[wavelet], output+chan, input+chan, lmin, width, height, channels, channels, width);
 }
 
-void quantization(int *output, float *input, int *widths, int *heights, int *lengths, int levels)
+void quantization(int *output, float *input, int *widths, int *heights, int *lengths, int levels, int channels)
 {
 	int width = widths[levels];
+	int height = heights[levels];
+	int pixels = width * height;
 	for (int y = 0; y < heights[0]; ++y) {
 		for (int x = 0; x < widths[0]; ++x) {
-			float v = input[width*y+x];
-			*output++ = nearbyintf(v);
+			for (int chan = 0; chan < channels; ++chan) {
+				float v = input[channels*(width*y+x)+chan];
+				output[chan*pixels] = nearbyintf(v);
+			}
+			++output;
 		}
 	}
 	for (int l = 0; l < levels; ++l) {
 		for (int i = 0; i < lengths[l+1] * lengths[l+1]; ++i) {
 			struct position pos = hilbert(lengths[l+1], i);
-			if ((pos.x >= widths[l] || pos.y >= heights[l]) &&
-			pos.x < widths[l+1] && pos.y < heights[l+1]) {
-				float v = input[width*pos.y+pos.x];
-				*output++ = truncf(v);
+			if ((pos.x >= widths[l] || pos.y >= heights[l]) && pos.x < widths[l+1] && pos.y < heights[l+1]) {
+				for (int chan = 0; chan < channels; ++chan) {
+					float v = input[channels*(width*pos.y+pos.x)+chan];
+					output[chan*pixels] = truncf(v);
+				}
+				++output;
 			}
 		}
 	}
-}
-
-void copy(float *output, float *input, int width, int height, int stride)
-{
-	for (int i = 0; i < width * height; ++i)
-		output[i] = input[i*stride];
 }
 
 int encode(struct rle_writer *rle, int *val, int num, int plane)
@@ -144,21 +146,17 @@ int main(int argc, char **argv)
 	if (argc >= 5)
 		wavelet = atoi(argv[4]);
 	ycocg_from_srgb(image);
+	int channels = 3;
 	for (int i = 0; i < width * height; ++i)
-		image->buffer[3*i] -= 128.f;
-	float *input = malloc(sizeof(float) * pixels);
-	float *output = malloc(sizeof(float) * pixels);
-	int *buffer = malloc(sizeof(int) * 3 * pixels);
-	for (int chan = 0; chan < 3; ++chan) {
-		copy(input, image->buffer+chan, width, height, 3);
-		transformation(output, input, lmin, width, height, wavelet);
-		quantization(buffer+chan*pixels, output, widths, heights, lengths, levels);
-	}
+		image->buffer[channels*i] -= 128.f;
+	float *temp = malloc(sizeof(float) * channels * pixels);
+	int *buffer = malloc(sizeof(int) * channels * pixels);
+	transformation(temp, image->buffer, lmin, width, height, wavelet, channels);
+	quantization(buffer, temp, widths, heights, lengths, levels, channels);
 	delete_image(image);
-	free(input);
-	free(output);
-	int planes[3];
-	for (int chan = 0; chan < 3; ++chan)
+	free(temp);
+	int planes[channels];
+	for (int chan = 0; chan < channels; ++chan)
 		planes[chan] = process(buffer+chan*pixels+pixels_root, pixels-pixels_root);
 	struct bits_writer *bits = bits_writer(argv[2], capacity);
 	if (!bits)
@@ -171,14 +169,14 @@ int main(int argc, char **argv)
 	put_vli(vli, lmin);
 	int meta_data = bits_count(bits);
 	fprintf(stderr, "%d bits for meta data\n", meta_data);
-	for (int chan = 0; chan < 3; ++chan)
+	for (int chan = 0; chan < channels; ++chan)
 		encode_root(vli, buffer+chan*pixels, pixels_root);
 	int root_image = bits_count(bits);
 	fprintf(stderr, "%d bits for root image\n", root_image - meta_data);
-	for (int chan = 0; chan < 3; ++chan)
+	for (int chan = 0; chan < channels; ++chan)
 		put_vli(vli, planes[chan]);
 	int planes_max = 0;
-	for (int chan = 0; chan < 3; ++chan)
+	for (int chan = 0; chan < channels; ++chan)
 		if (planes_max < planes[chan])
 			planes_max = planes[chan];
 	int maximum = levels > planes_max ? levels : planes_max;
@@ -206,7 +204,7 @@ int main(int argc, char **argv)
 		num = widths[l+1] * heights[l+1] - widths[l] * heights[l];
 		l < levels && l <= layers; buf += num, ++l,
 		num = widths[l+1] * heights[l+1] - widths[l] * heights[l]) {
-			for (int chan = 1; chan < 3; ++chan) {
+			for (int chan = 1; chan < channels; ++chan) {
 				int plane = planes_max-1 - (layers-l);
 				if (plane < 0 || plane >= planes[chan])
 					continue;
