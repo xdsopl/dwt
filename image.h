@@ -91,7 +91,7 @@ void rct2srgb(float *io)
 	float B = V + G;
 	io[0] = fclampf(R, 0.f, 255.f);
 	io[1] = fclampf(G, 0.f, 255.f);
-	io[2] = fclampf(B, 0.f, 255.f);;
+	io[2] = fclampf(B, 0.f, 255.f);
 }
 
 void srgb2rct(float *io)
@@ -102,6 +102,34 @@ void srgb2rct(float *io)
 	float Y = floorf((R + 2.f * G + B) / 4.f);
 	float U = R - G;
 	float V = B - G;
+	io[0] = Y;
+	io[1] = U;
+	io[2] = V;
+}
+
+void ycocg2srgb(float *io)
+{
+	float Y = io[0];
+	float U = io[1];
+	float V = io[2];
+	float T = Y - floorf(V / 2.f);
+	float G = V + T;
+	float B = T - floorf(U / 2.f);
+	float R = B + U;
+	io[0] = fclampf(R, 0.f, 255.f);
+	io[1] = fclampf(G, 0.f, 255.f);
+	io[2] = fclampf(B, 0.f, 255.f);
+}
+
+void srgb2ycocg(float *io)
+{
+	float R = io[0];
+	float G = io[1];
+	float B = io[2];
+	float U = R - B;
+	float T = B + floorf(U / 2.f);
+	float V = G - T;
+	float Y = T + floorf(V / 2.f);
 	io[0] = Y;
 	io[1] = U;
 	io[2] = V;
@@ -159,5 +187,17 @@ void srgb_from_rct(struct image *image)
 {
 	for (int i = 0; i < image->total; i++)
 		rct2srgb(image->buffer + 3 * i);
+}
+
+void ycocg_from_srgb(struct image *image)
+{
+	for (int i = 0; i < image->total; i++)
+		srgb2ycocg(image->buffer + 3 * i);
+}
+
+void srgb_from_ycocg(struct image *image)
+{
+	for (int i = 0; i < image->total; i++)
+		ycocg2srgb(image->buffer + 3 * i);
 }
 

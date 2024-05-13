@@ -143,7 +143,7 @@ int main(int argc, char **argv)
 	int wavelet = 1;
 	if (argc >= 5)
 		wavelet = atoi(argv[4]);
-	rct_from_srgb(image);
+	ycocg_from_srgb(image);
 	for (int i = 0; i < width * height; ++i)
 		image->buffer[3*i] -= 128.f;
 	float *input = malloc(sizeof(float) * pixels);
