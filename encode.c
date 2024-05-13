@@ -17,9 +17,8 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 void transformation(float *output, float *input, int lmin, int width, int height, int wavelet, int channels)
 {
-	void (*funcs[3])(float *, float *, int, int, int) = { haar, cdf97, rint_haar };
-	for (int chan = 0; chan < channels; ++chan)
-		dwt2d(funcs[wavelet], output+chan, input+chan, lmin, width, height, channels, channels, width);
+	void (*funcs[3])(float *, float *, int, int, int, int) = { haar, cdf97, rint_haar };
+	dwt2d(funcs[wavelet], output, input, lmin, width, height, 1, 1, width * channels, channels);
 }
 
 void quantization(int *output, float *input, int *widths, int *heights, int *lengths, int levels, int channels)

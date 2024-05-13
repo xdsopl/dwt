@@ -10,72 +10,94 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 #pragma once
 
-void cdf97(float *out, float *in, int N, int SO, int SI)
+void cdf97(float *out, float *in, int N, int SO, int SI, int CH)
 {
-	float	a = -1.586134342f,
-		b = -0.05298011854f,
-		c = 0.8829110762f,
-		d = 0.4435068522f,
-		e = 1.149604398f;
+	float	A = -1.586134342f,
+		B = -0.05298011854f,
+		C = 0.8829110762f,
+		D = 0.4435068522f,
+		E = 1.149604398f;
 
 	int M = N&~1, K = N+(N&1);
 	for (int i = 1; i < N-1; i += 2)
-		in[i*SI] += a * (in[(i-1)*SI] + in[(i+1)*SI]);
+		for (int c = 0; c < CH; ++c)
+			in[i*SI+c] += A * (in[(i-1)*SI+c] + in[(i+1)*SI+c]);
 	if (!(N&1))
-		in[(N-1)*SI] += a * (2.f * in[(N-2)*SI]);
+		for (int c = 0; c < CH; ++c)
+			in[(N-1)*SI+c] += A * (2.f * in[(N-2)*SI+c]);
 
-	in[0] += b * (2.f * in[SI]);
+	for (int c = 0; c < CH; ++c)
+		in[c] += B * (2.f * in[SI+c]);
 	for (int i = 2; i < M; i += 2)
-		in[i*SI] += b * (in[(i-1)*SI] + in[(i+1)*SI]);
+		for (int c = 0; c < CH; ++c)
+			in[i*SI+c] += B * (in[(i-1)*SI+c] + in[(i+1)*SI+c]);
 
 	for (int i = 1; i < N-1; i += 2)
-		in[i*SI] += c * (in[(i-1)*SI] + in[(i+1)*SI]);
+		for (int c = 0; c < CH; ++c)
+			in[i*SI+c] += C * (in[(i-1)*SI+c] + in[(i+1)*SI+c]);
 	if (!(N&1))
-		in[(N-1)*SI] += c * (2.f * in[(N-2)*SI]);
+		for (int c = 0; c < CH; ++c)
+			in[(N-1)*SI+c] += C * (2.f * in[(N-2)*SI+c]);
 
-	in[0] += d * (2.f * in[SI]);
+	for (int c = 0; c < CH; ++c)
+		in[c] += D * (2.f * in[SI+c]);
 	for (int i = 2; i < M; i += 2)
-		in[i*SI] += d * (in[(i-1)*SI] + in[(i+1)*SI]);
+		for (int c = 0; c < CH; ++c)
+			in[i*SI+c] += D * (in[(i-1)*SI+c] + in[(i+1)*SI+c]);
 
 	for (int i = 0; i < M; i += 2) {
-		out[(i+0)/2*SO] = in[(i+0)*SI] * e;
-		out[(i+K)/2*SO] = in[(i+1)*SI] / e;
+		for (int c = 0; c < CH; ++c) {
+			out[(i+0)/2*SO+c] = in[(i+0)*SI+c] * E;
+			out[(i+K)/2*SO+c] = in[(i+1)*SI+c] / E;
+		}
 	}
 	if (N&1)
-		out[(N-1)/2*SO] = in[(N-1)*SI] * e;
+		for (int c = 0; c < CH; ++c)
+			out[(N-1)/2*SO+c] = in[(N-1)*SI+c] * E;
 }
 
-void icdf97(float *out, float *in, int N, int SO, int SI)
+void icdf97(float *out, float *in, int N, int SO, int SI, int CH)
 {
-	float	a = -1.586134342f,
-		b = -0.05298011854f,
-		c = 0.8829110762f,
-		d = 0.4435068522f,
-		e = 1.149604398f;
+	float	A = -1.586134342f,
+		B = -0.05298011854f,
+		C = 0.8829110762f,
+		D = 0.4435068522f,
+		E = 1.149604398f;
 
 	int M = N&~1, K = N+(N&1);
 	for (int i = 0; i < M; i += 2) {
-		out[(i+0)*SO] = in[(i+0)/2*SI] / e;
-		out[(i+1)*SO] = in[(i+K)/2*SI] * e;
+		for (int c = 0; c < CH; ++c) {
+			out[(i+0)*SO+c] = in[(i+0)/2*SI+c] / E;
+			out[(i+1)*SO+c] = in[(i+K)/2*SI+c] * E;
+		}
 	}
 	if (N&1)
-		out[(N-1)*SO] = in[(N-1)/2*SI] / e;
-	out[0] -= d * (2.f * out[SO]);
+		for (int c = 0; c < CH; ++c)
+			out[(N-1)*SO+c] = in[(N-1)/2*SI+c] / E;
+	for (int c = 0; c < CH; ++c)
+		out[c] -= D * (2.f * out[SO+c]);
 	for (int i = 2; i < M; i += 2)
-		out[i*SO] -= d * (out[(i-1)*SO] + out[(i+1)*SO]);
+		for (int c = 0; c < CH; ++c)
+			out[i*SO+c] -= D * (out[(i-1)*SO+c] + out[(i+1)*SO+c]);
 
 	for (int i = 1; i < N-1; i += 2)
-		out[i*SO] -= c * (out[(i-1)*SO] + out[(i+1)*SO]);
+		for (int c = 0; c < CH; ++c)
+			out[i*SO+c] -= C * (out[(i-1)*SO+c] + out[(i+1)*SO+c]);
 	if (!(N&1))
-		out[(N-1)*SO] -= c * (2.f * out[(N-2)*SO]);
+		for (int c = 0; c < CH; ++c)
+			out[(N-1)*SO+c] -= C * (2.f * out[(N-2)*SO+c]);
 
-	out[0] -= b * (2.f * out[SO]);
+	for (int c = 0; c < CH; ++c)
+		out[c] -= B * (2.f * out[SO+c]);
 	for (int i = 2; i < M; i += 2)
-		out[i*SO] -= b * (out[(i-1)*SO] + out[(i+1)*SO]);
+		for (int c = 0; c < CH; ++c)
+			out[i*SO+c] -= B * (out[(i-1)*SO+c] + out[(i+1)*SO+c]);
 
 	for (int i = 1; i < N-1; i += 2)
-		out[i*SO] -= a * (out[(i-1)*SO] + out[(i+1)*SO]);
+		for (int c = 0; c < CH; ++c)
+			out[i*SO+c] -= A * (out[(i-1)*SO+c] + out[(i+1)*SO+c]);
 	if (!(N&1))
-		out[(N-1)*SO] -= a * (2.f * out[(N-2)*SO]);
+		for (int c = 0; c < CH; ++c)
+			out[(N-1)*SO+c] -= A * (2.f * out[(N-2)*SO+c]);
 }
 
