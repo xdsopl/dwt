@@ -4,7 +4,7 @@ LDLIBS = -lm
 all: encode decode
 
 test: encode decode
-	./encode input.ppm /dev/stdout | ./decode /dev/stdin output.ppm
+	./encode input.ppm - | ./decode - output.ppm
 	compare -verbose -metric PSNR input.ppm output.ppm /dev/null ; true
 
 %: %.c *.h

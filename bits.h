@@ -27,9 +27,12 @@ struct bits_writer {
 
 struct bits_reader *bits_reader(char *name)
 {
-	FILE *file = fopen(name, "r");
+	const char *fname = "/dev/stdin";
+	if (name[0] != '-' || name[1])
+		fname = name;
+	FILE *file = fopen(fname, "r");
 	if (!file) {
-		fprintf(stderr, "could not open \"%s\" file to read.\n", name);
+		fprintf(stderr, "could not open \"%s\" file to read.\n", fname);
 		return 0;
 	}
 	struct bits_reader *bits = malloc(sizeof(struct bits_reader));
@@ -42,9 +45,12 @@ struct bits_reader *bits_reader(char *name)
 
 struct bits_writer *bits_writer(char *name, int capacity)
 {
-	FILE *file = fopen(name, "w");
+	const char *fname = "/dev/stdout";
+	if (name[0] != '-' || name[1])
+		fname = name;
+	FILE *file = fopen(fname, "w");
 	if (!file) {
-		fprintf(stderr, "could not open \"%s\" file to write.\n", name);
+		fprintf(stderr, "could not open \"%s\" file to write.\n", fname);
 		return 0;
 	}
 	struct bits_writer *bits = malloc(sizeof(struct bits_writer));

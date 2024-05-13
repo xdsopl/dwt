@@ -13,13 +13,16 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 
 struct image *read_ppm(char *name)
 {
-	FILE *file = fopen(name, "r");
+	const char *fname = "/dev/stdin";
+	if (name[0] != '-' || name[1])
+		fname = name;
+	FILE *file = fopen(fname, "r");
 	if (!file) {
-		fprintf(stderr, "could not open \"%s\" file to read.\n", name);
+		fprintf(stderr, "could not open \"%s\" file to read.\n", fname);
 		return 0;
 	}
 	if ('P' != fgetc(file) || '6' != fgetc(file)) {
-		fprintf(stderr, "file \"%s\" not P6 image.\n", name);
+		fprintf(stderr, "file \"%s\" not P6 image.\n", fname);
 		fclose(file);
 		return 0;
 	}
@@ -50,12 +53,12 @@ struct image *read_ppm(char *name)
 		integer[i] = atoi(str);
 	}
 	if (!(integer[0] && integer[1] && integer[2])) {
-		fprintf(stderr, "could not read image file \"%s\".\n", name);
+		fprintf(stderr, "could not read image file \"%s\".\n", fname);
 		fclose(file);
 		return 0;
 	}
 	if (integer[2] != 255) {
-		fprintf(stderr, "cant read \"%s\", only 8 bit per channel SRGB supported at the moment.\n", name);
+		fprintf(stderr, "cant read \"%s\", only 8 bit per channel SRGB supported at the moment.\n", fname);
 		fclose(file);
 		return 0;
 	}
@@ -69,7 +72,7 @@ struct image *read_ppm(char *name)
 	fclose(file);
 	return image;
 eof:
-	fprintf(stderr, "EOF while reading from \"%s\".\n", name);
+	fprintf(stderr, "EOF while reading from \"%s\".\n", fname);
 	fclose(file);
 	delete_image(image);
 	return 0;
@@ -77,13 +80,16 @@ eof:
 
 int write_ppm(struct image *image)
 {
-	FILE *file = fopen(image->name, "w");
+	const char *fname = "/dev/stdout";
+	if (image->name[0] != '-' || image->name[1])
+		fname = image->name;
+	FILE *file = fopen(fname, "w");
 	if (!file) {
-		fprintf(stderr, "could not open \"%s\" file to write.\n", image->name);
+		fprintf(stderr, "could not open \"%s\" file to write.\n", fname);
 		return 0;
 	}
 	if (!fprintf(file, "P6 %d %d 255\n", image->width, image->height)) {
-		fprintf(stderr, "could not write to file \"%s\".\n", image->name);
+		fprintf(stderr, "could not write to file \"%s\".\n", fname);
 		fclose(file);
 		return 0;
 	}
@@ -94,7 +100,7 @@ int write_ppm(struct image *image)
 	fclose(file);
 	return 1;
 eof:
-	fprintf(stderr, "EOF while writing to \"%s\".\n", image->name);
+	fprintf(stderr, "EOF while writing to \"%s\".\n", fname);
 	fclose(file);
 	return 0;
 }
