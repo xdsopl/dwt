@@ -1,5 +1,5 @@
 /*
-Decoder for lossy and lossless image compression based on the discrete wavelet transformation
+Decoder for lossless image compression based on the discrete wavelet transformation
 
 Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 */
@@ -14,13 +14,13 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "vli.h"
 #include "bits.h"
 
-void transformation(float *output, float *input, int lmin, int width, int height, int wavelet, int channels)
+void transformation(int *output, int *input, int lmin, int width, int height, int wavelet, int channels)
 {
-	void (*funcs[2])(float *, float *, int, int, int, int) = { icdf53, ihaar };
+	void (*funcs[2])(int *, int *, int, int, int, int) = { icdf53, ihaar };
 	idwt2d(funcs[wavelet], output, input, lmin, width, height, 1, 1, width * channels, channels);
 }
 
-void quantization(float *output, int *input, int *missing, int *widths, int *heights, int *lengths, int levels, int channels)
+void quantization(int *output, int *input, int *missing, int *widths, int *heights, int *lengths, int levels, int channels)
 {
 	int width = widths[levels];
 	int height = heights[levels];
@@ -28,7 +28,7 @@ void quantization(float *output, int *input, int *missing, int *widths, int *hei
 	for (int y = 0; y < heights[0]; ++y) {
 		for (int x = 0; x < widths[0]; ++x) {
 			for (int chan = 0; chan < channels; ++chan) {
-				float v = input[chan*pixels];
+				int v = input[chan*pixels];
 				output[channels*(width*y+x)+chan] = v;
 			}
 			++input;
@@ -39,13 +39,13 @@ void quantization(float *output, int *input, int *missing, int *widths, int *hei
 			struct position pos = hilbert(lengths[l+1], i);
 			if ((pos.x >= widths[l] || pos.y >= heights[l]) && pos.x < widths[l+1] && pos.y < heights[l+1]) {
 				for (int chan = 0; chan < channels; ++chan) {
-					float v = input[chan*pixels];
-					float bias = 0.375f;
-					bias *= 1 << missing[chan*levels+l];
-					if (missing[chan*levels+l]) {
-						if (v < 0.f)
+					int v = input[chan*pixels];
+					int m = missing[chan*levels+l];
+					if (m) {
+						int bias = 1 << (m - 1);
+						if (v < 0)
 							v -= bias;
-						else if (v > 0.f)
+						else if (v > 0)
 							v += bias;
 					}
 					output[channels*(width*pos.y+pos.x)+chan] = v;
@@ -210,13 +210,13 @@ end:
 	for (int chan = 0; chan < channels; ++chan)
 		process(buffer+chan*pixels+pixels_root, pixels-pixels_root);
 	struct image *image = new_image(argv[2], width, height);
-	float *temp = malloc(sizeof(float) * channels * pixels);
+	int *temp = malloc(sizeof(int) * channels * pixels);
 	quantization(temp, buffer, missing, widths, heights, lengths, levels, channels);
 	transformation(image->buffer, temp, lmin, width, height, wavelet, channels);
 	free(buffer);
 	free(temp);
 	for (int i = 0; i < width * height; ++i)
-		image->buffer[channels*i] += 128.f;
+		image->buffer[channels*i] += 128;
 	rgb_from_ycocg(image);
 	if (!write_ppm(image))
 		return 1;

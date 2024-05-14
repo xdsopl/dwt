@@ -1,5 +1,5 @@
 /*
-Encoder for lossy and lossless image compression based on the discrete wavelet transformation
+Encoder for lossless image compression based on the discrete wavelet transformation
 
 Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 */
@@ -14,13 +14,13 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "vli.h"
 #include "bits.h"
 
-void transformation(float *output, float *input, int lmin, int width, int height, int wavelet, int channels)
+void transformation(int *output, int *input, int lmin, int width, int height, int wavelet, int channels)
 {
-	void (*funcs[2])(float *, float *, int, int, int, int) = { cdf53, haar };
+	void (*funcs[2])(int *, int *, int, int, int, int) = { cdf53, haar };
 	dwt2d(funcs[wavelet], output, input, lmin, width, height, 1, 1, width * channels, channels);
 }
 
-void quantization(int *output, float *input, int *widths, int *heights, int *lengths, int levels, int channels)
+void quantization(int *output, int *input, int *widths, int *heights, int *lengths, int levels, int channels)
 {
 	int width = widths[levels];
 	int height = heights[levels];
@@ -28,8 +28,8 @@ void quantization(int *output, float *input, int *widths, int *heights, int *len
 	for (int y = 0; y < heights[0]; ++y) {
 		for (int x = 0; x < widths[0]; ++x) {
 			for (int chan = 0; chan < channels; ++chan) {
-				float v = input[channels*(width*y+x)+chan];
-				output[chan*pixels] = nearbyintf(v);
+				int v = input[channels*(width*y+x)+chan];
+				output[chan*pixels] = v;
 			}
 			++output;
 		}
@@ -39,8 +39,8 @@ void quantization(int *output, float *input, int *widths, int *heights, int *len
 			struct position pos = hilbert(lengths[l+1], i);
 			if ((pos.x >= widths[l] || pos.y >= heights[l]) && pos.x < widths[l+1] && pos.y < heights[l+1]) {
 				for (int chan = 0; chan < channels; ++chan) {
-					float v = input[channels*(width*pos.y+pos.x)+chan];
-					output[chan*pixels] = truncf(v);
+					int v = input[channels*(width*pos.y+pos.x)+chan];
+					output[chan*pixels] = v;
 				}
 				++output;
 			}
@@ -146,8 +146,8 @@ int main(int argc, char **argv)
 	ycocg_from_rgb(image);
 	int channels = 3;
 	for (int i = 0; i < width * height; ++i)
-		image->buffer[channels*i] -= 128.f;
-	float *temp = malloc(sizeof(float) * channels * pixels);
+		image->buffer[channels*i] -= 128;
+	int *temp = malloc(sizeof(int) * channels * pixels);
 	int *buffer = malloc(sizeof(int) * channels * pixels);
 	transformation(temp, image->buffer, lmin, width, height, wavelet, channels);
 	quantization(buffer, temp, widths, heights, lengths, levels, channels);

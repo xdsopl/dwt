@@ -6,7 +6,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 #pragma once
 
-void dwt2d(void (*wavelet)(float *, float *, int, int, int, int), float *out, float *in, int N0, int W, int H, int SO, int SI, int SW, int CH)
+void dwt2d(void (*wavelet)(int *, int *, int, int, int, int), int *out, int *in, int N0, int W, int H, int SO, int SI, int SW, int CH)
 {
 	for (int j = 0; j < H; ++j) {
 		wavelet(out+SO*SW*j, in+SI*SW*j, W, SO*CH, SI*CH, CH);
@@ -22,7 +22,7 @@ void dwt2d(void (*wavelet)(float *, float *, int, int, int, int), float *out, fl
 		dwt2d(wavelet, out, in, N0, W2, H2, SO, SI, SW, CH);
 }
 
-void idwt2d(void (*iwavelet)(float *, float *, int, int, int, int), float *out, float *in, int N0, int W, int H, int SO, int SI, int SW, int CH)
+void idwt2d(void (*iwavelet)(int *, int *, int, int, int, int), int *out, int *in, int N0, int W, int H, int SO, int SI, int SW, int CH)
 {
 	int W2 = (W+1)/2, H2 = (H+1)/2;
 	if (W2 >= N0 && H2 >= N0)

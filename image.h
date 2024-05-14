@@ -7,10 +7,9 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #pragma once
 
 #include <stdlib.h>
-#include <math.h>
 
 struct image {
-	float *buffer;
+	int *buffer;
 	int width, height, total;
 	char *name;
 };
@@ -28,38 +27,38 @@ struct image *new_image(char *name, int width, int height)
 	image->width = width;
 	image->total = width * height;
 	image->name = name;
-	image->buffer = malloc(3 * sizeof(float) * width * height);
+	image->buffer = malloc(3 * sizeof(int) * width * height);
 	return image;
 }
 
-float fclampf(float x, float a, float b)
+int clamp(int x, int a, int b)
 {
-	return fminf(fmaxf(x, a), b);
+	return x < a ? a : x > b ? b : x;
 }
 
-void ycocg2rgb(float *io)
+void ycocg2rgb(int *io)
 {
-	float Y = io[0];
-	float U = io[1];
-	float V = io[2];
-	float T = Y - floorf(V / 2.f);
-	float G = V + T;
-	float B = T - floorf(U / 2.f);
-	float R = B + U;
-	io[0] = fclampf(R, 0.f, 255.f);
-	io[1] = fclampf(G, 0.f, 255.f);
-	io[2] = fclampf(B, 0.f, 255.f);
+	int Y = io[0];
+	int U = io[1];
+	int V = io[2];
+	int T = Y - (V + 512) / 2 + 256;
+	int G = V + T;
+	int B = T - (U + 512) / 2 + 256;
+	int R = B + U;
+	io[0] = clamp(R, 0, 255);
+	io[1] = clamp(G, 0, 255);
+	io[2] = clamp(B, 0, 255);
 }
 
-void rgb2ycocg(float *io)
+void rgb2ycocg(int *io)
 {
-	float R = io[0];
-	float G = io[1];
-	float B = io[2];
-	float U = R - B;
-	float T = B + floorf(U / 2.f);
-	float V = G - T;
-	float Y = T + floorf(V / 2.f);
+	int R = io[0];
+	int G = io[1];
+	int B = io[2];
+	int U = R - B;
+	int T = B + (U + 512) / 2 - 256;
+	int V = G - T;
+	int Y = T + (V + 512) / 2 - 256;
 	io[0] = Y;
 	io[1] = U;
 	io[2] = V;
