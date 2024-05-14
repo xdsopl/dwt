@@ -143,7 +143,7 @@ int main(int argc, char **argv)
 	int wavelet = 0;
 	if (argc >= 5)
 		wavelet = atoi(argv[4]);
-	ycocg_from_srgb(image);
+	ycocg_from_rgb(image);
 	int channels = 3;
 	for (int i = 0; i < width * height; ++i)
 		image->buffer[channels*i] -= 128.f;
