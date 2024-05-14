@@ -133,7 +133,7 @@ int main(int argc, char **argv)
 	int width = image->width;
 	int height = image->height;
 	int pixels = width * height;
-	int lmin = 4;
+	int lmin = 8;
 	int lengths[16], widths[16], heights[16];
 	int levels = compute_lengths(lengths, widths, heights, width, height, lmin);
 	int pixels_root = widths[0] * heights[0];
