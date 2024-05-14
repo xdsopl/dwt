@@ -1,4 +1,4 @@
-### Playing with lossy and lossless image compression based on the discrete wavelet transformation
+### Playing with lossless image compression based on the discrete wavelet transformation
 
 Quick start:
 
@@ -30,10 +30,10 @@ Use up to ```65536``` bits of space instead of the default ```0``` (no limit) an
 
 ### Use different wavelet
 
-Use the reversible integer [Haar wavelet](https://en.wikipedia.org/wiki/Haar_wavelet) instead of the default ```1``` [CDF](https://en.wikipedia.org/wiki/Cohen%E2%80%93Daubechies%E2%80%93Feauveau_wavelet) 9/7 wavelet for lossless compression:
+Use the reversible integer [Haar wavelet](https://en.wikipedia.org/wiki/Haar_wavelet) instead of the default ```0``` reversible integer [CDF](https://en.wikipedia.org/wiki/Cohen%E2%80%93Daubechies%E2%80%93Feauveau_wavelet) 5/3 wavelet:
 
 ```
-./encode smpte.ppm encoded.dwt 0 2
+./encode smpte.ppm encoded.dwt 0 1
 ```
 
 ### Reading

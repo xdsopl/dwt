@@ -6,7 +6,6 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 #include "hilbert.h"
 #include "cdf53.h"
-#include "cdf97.h"
 #include "haar.h"
 #include "utils.h"
 #include "dwt.h"
@@ -17,11 +16,11 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 void transformation(float *output, float *input, int lmin, int width, int height, int wavelet, int channels)
 {
-	void (*funcs[3])(float *, float *, int, int, int, int) = { icdf53, icdf97, ihaar };
+	void (*funcs[2])(float *, float *, int, int, int, int) = { icdf53, ihaar };
 	idwt2d(funcs[wavelet], output, input, lmin, width, height, 1, 1, width * channels, channels);
 }
 
-void quantization(float *output, int *input, int *missing, int *widths, int *heights, int *lengths, int levels, int wavelet, int channels)
+void quantization(float *output, int *input, int *missing, int *widths, int *heights, int *lengths, int levels, int channels)
 {
 	int width = widths[levels];
 	int height = heights[levels];
@@ -43,7 +42,7 @@ void quantization(float *output, int *input, int *missing, int *widths, int *hei
 					float v = input[chan*pixels];
 					float bias = 0.375f;
 					bias *= 1 << missing[chan*levels+l];
-					if (wavelet == 1 || missing[chan*levels+l]) {
+					if (missing[chan*levels+l]) {
 						if (v < 0.f)
 							v -= bias;
 						else if (v > 0.f)
@@ -212,7 +211,7 @@ end:
 		process(buffer+chan*pixels+pixels_root, pixels-pixels_root);
 	struct image *image = new_image(argv[2], width, height);
 	float *temp = malloc(sizeof(float) * channels * pixels);
-	quantization(temp, buffer, missing, widths, heights, lengths, levels, wavelet, channels);
+	quantization(temp, buffer, missing, widths, heights, lengths, levels, channels);
 	transformation(image->buffer, temp, lmin, width, height, wavelet, channels);
 	free(buffer);
 	free(temp);

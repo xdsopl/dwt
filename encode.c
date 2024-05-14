@@ -6,7 +6,6 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 #include "hilbert.h"
 #include "cdf53.h"
-#include "cdf97.h"
 #include "haar.h"
 #include "utils.h"
 #include "dwt.h"
@@ -17,7 +16,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 void transformation(float *output, float *input, int lmin, int width, int height, int wavelet, int channels)
 {
-	void (*funcs[3])(float *, float *, int, int, int, int) = { cdf53, cdf97, haar };
+	void (*funcs[2])(float *, float *, int, int, int, int) = { cdf53, haar };
 	dwt2d(funcs[wavelet], output, input, lmin, width, height, 1, 1, width * channels, channels);
 }
 
@@ -141,7 +140,7 @@ int main(int argc, char **argv)
 	int capacity = 0;
 	if (argc >= 4)
 		capacity = atoi(argv[3]);
-	int wavelet = 1;
+	int wavelet = 0;
 	if (argc >= 5)
 		wavelet = atoi(argv[4]);
 	ycocg_from_srgb(image);

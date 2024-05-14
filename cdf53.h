@@ -1,8 +1,6 @@
 /*
 Reversible integer Cohen–Daubechies–Feauveau 5/3 wavelet
 
-Copied from cdf97.h, using A = -1/2, B = 1/4, C = 0, D = 0 and E = 1
-
 Copyright 2024 Ahmet Inan <xdsopl@gmail.com>
 */
 
