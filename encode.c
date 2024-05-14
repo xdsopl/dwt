@@ -163,6 +163,8 @@ int main(int argc, char **argv)
 	struct bits_writer *bits = bits_writer(argv[2], capacity);
 	if (!bits)
 		return 1;
+	int magic = 5527364;
+	write_bits(bits, magic, 24);
 	put_bit(bits, wavelet);
 	struct vli_writer *vli = vli_writer(bits);
 	put_vli(vli, width);

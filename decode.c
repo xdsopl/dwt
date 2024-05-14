@@ -133,6 +133,9 @@ int main(int argc, char **argv)
 	struct bits_reader *bits = bits_reader(argv[1]);
 	if (!bits)
 		return 1;
+	int magic;
+	if (read_bits(bits, &magic, 24) || magic != 5527364)
+		return 1;
 	int wavelet = get_bit(bits);
 	struct vli_reader *vli = vli_reader(bits);
 	int width = get_vli(vli);
