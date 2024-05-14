@@ -81,6 +81,11 @@ eof:
 	return 0;
 }
 
+int clamp(int x, int a, int b)
+{
+	return x < a ? a : x > b ? b : x;
+}
+
 int write_pnm(struct image *image)
 {
 	int channels = image->channels;
@@ -100,7 +105,7 @@ int write_pnm(struct image *image)
 		return 0;
 	}
 	for (int i = 0; i < channels * image->total; i++) {
-		if (EOF == fputc(image->buffer[i], file))
+		if (EOF == fputc(clamp(image->buffer[i], 0, 255), file))
 			goto eof;
 	}
 	fclose(file);
