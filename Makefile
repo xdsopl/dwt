@@ -1,4 +1,5 @@
-CFLAGS = -std=c99 -W -Wall -O3 -D_GNU_SOURCE=1 -g -fsanitize=address
+CFLAGS = -std=c99 -W -Wall -Ofast
+# CFLAGS += -g -fsanitize=address
 
 all: encode decode
 
