@@ -43,7 +43,7 @@ struct bits_reader *bits_reader(char *name)
 	return bits;
 }
 
-struct bits_writer *bits_writer(char *name, int capacity)
+struct bits_writer *bits_writer(char *name, int bytes)
 {
 	const char *fname = "/dev/stdout";
 	if (name[0] != '-' || name[1])
@@ -58,7 +58,7 @@ struct bits_writer *bits_writer(char *name, int capacity)
 	bits->name = name;
 	bits->acc = 0;
 	bits->cnt = 0;
-	bits->cap = capacity;
+	bits->cap = 8 * bytes;
 	bits->num = 0;
 	return bits;
 }

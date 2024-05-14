@@ -22,7 +22,7 @@ feh decoded.ppm
 
 ### Limited storage capacity
 
-Use up to ```65536``` bits of space instead of the default ```0``` (no limit) and discard quality bits, if necessary, to stay below ```65536``` bits:
+Use up to ```65536``` bytes of space instead of the default ```0``` (no limit) and discard quality bytes, if necessary, to stay below ```65536``` bytes:
 
 ```
 ./encode smpte.ppm encoded.dwt 65536
