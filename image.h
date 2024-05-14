@@ -41,9 +41,9 @@ void ycocg2rgb(int *io)
 	int Y = io[0];
 	int U = io[1];
 	int V = io[2];
-	int T = Y - (V + 512) / 2 + 256;
+	int T = Y - V / 2;
 	int G = V + T;
-	int B = T - (U + 512) / 2 + 256;
+	int B = T - U / 2;
 	int R = B + U;
 	io[0] = clamp(R, 0, 255);
 	io[1] = clamp(G, 0, 255);
@@ -56,9 +56,9 @@ void rgb2ycocg(int *io)
 	int G = io[1];
 	int B = io[2];
 	int U = R - B;
-	int T = B + (U + 512) / 2 - 256;
+	int T = B + U / 2;
 	int V = G - T;
-	int Y = T + (V + 512) / 2 - 256;
+	int Y = T + V / 2;
 	io[0] = Y;
 	io[1] = U;
 	io[2] = V;

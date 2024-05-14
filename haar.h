@@ -13,7 +13,7 @@ void haar(int *out, int *in, int N, int SO, int SI, int CH)
 			int ia = in[(i+0)*SI+c];
 			int ib = in[(i+1)*SI+c];
 			int ob = ia - ib;
-			int oa = ib + (ob + 1024) / 2 - 512;
+			int oa = ib + ob / 2;
 			out[(i+0)/2*SO+c] = oa;
 			out[(i+K)/2*SO+c] = ob;
 		}
@@ -29,7 +29,7 @@ void ihaar(int *out, int *in, int N, int SO, int SI, int CH)
 		for (int c = 0; c < CH; ++c) {
 			int ia = in[(i+0)/2*SI+c];
 			int ib = in[(i+K)/2*SI+c];
-			int ob = ia - (ib + 1024) / 2 + 512;
+			int ob = ia - ib / 2;
 			int oa = ib + ob;
 			out[(i+0)*SO+c] = oa;
 			out[(i+1)*SO+c] = ob;
