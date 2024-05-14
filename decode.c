@@ -20,7 +20,7 @@ void transformation(int *output, int *input, int lmin, int width, int height, in
 	idwt2d(funcs[wavelet], output, input, lmin, width, height, 1, 1, width * channels, channels);
 }
 
-void quantization(int *output, int *input, int *missing, int *widths, int *heights, int *lengths, int levels, int channels)
+void reconstruction(int *output, int *input, int *missing, int *widths, int *heights, int *lengths, int levels, int channels)
 {
 	int width = widths[levels];
 	int height = heights[levels];
@@ -211,7 +211,7 @@ end:
 		process(buffer+chan*pixels+pixels_root, pixels-pixels_root);
 	struct image *image = new_image(argv[2], width, height);
 	int *temp = malloc(sizeof(int) * channels * pixels);
-	quantization(temp, buffer, missing, widths, heights, lengths, levels, channels);
+	reconstruction(temp, buffer, missing, widths, heights, lengths, levels, channels);
 	transformation(image->buffer, temp, lmin, width, height, wavelet, channels);
 	free(buffer);
 	free(temp);

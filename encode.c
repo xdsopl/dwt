@@ -20,7 +20,7 @@ void transformation(int *output, int *input, int lmin, int width, int height, in
 	dwt2d(funcs[wavelet], output, input, lmin, width, height, 1, 1, width * channels, channels);
 }
 
-void quantization(int *output, int *input, int *widths, int *heights, int *lengths, int levels, int channels)
+void linearization(int *output, int *input, int *widths, int *heights, int *lengths, int levels, int channels)
 {
 	int width = widths[levels];
 	int height = heights[levels];
@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 	int *temp = malloc(sizeof(int) * channels * pixels);
 	int *buffer = malloc(sizeof(int) * channels * pixels);
 	transformation(temp, image->buffer, lmin, width, height, wavelet, channels);
-	quantization(buffer, temp, widths, heights, lengths, levels, channels);
+	linearization(buffer, temp, widths, heights, lengths, levels, channels);
 	delete_image(image);
 	free(temp);
 	int planes[channels];
