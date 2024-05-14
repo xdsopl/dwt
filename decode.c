@@ -14,10 +14,10 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "vli.h"
 #include "bits.h"
 
-void transformation(int *output, int *input, int lmin, int width, int height, int wavelet, int channels)
+void transformation(int *output, int *input, int min_len, int width, int height, int wavelet, int channels)
 {
 	void (*funcs[2])(int *, int *, int, int, int, int) = { icdf53, ihaar };
-	idwt2d(funcs[wavelet], output, input, lmin, width, height, 1, 1, width * channels, channels);
+	idwt2d(funcs[wavelet], output, input, min_len, width, height, 1, 1, width * channels, channels);
 }
 
 void reconstruction(int *output, int *input, int *missing, int *widths, int *heights, int *lengths, int levels, int channels)
@@ -133,18 +133,17 @@ int main(int argc, char **argv)
 	struct bits_reader *bits = bits_reader(argv[1]);
 	if (!bits)
 		return 1;
-	int coding = get_bit(bits);
-	if (coding != 0)
-		return 1;
+	int wavelet = get_bit(bits);
 	struct vli_reader *vli = vli_reader(bits);
-	int wavelet = get_vli(vli);
 	int width = get_vli(vli);
 	int height = get_vli(vli);
-	int lmin = get_vli(vli);
-	if ((wavelet|width|height|lmin) < 0)
+	if ((wavelet|width|height) < 0)
+		return 1;
+	int min_len = 8;
+	if (width < min_len || height < min_len)
 		return 1;
 	int lengths[16], widths[16], heights[16];
-	int levels = compute_lengths(lengths, widths, heights, width, height, lmin);
+	int levels = compute_lengths(lengths, widths, heights, width, height, min_len);
 	int pixels_root = widths[0] * heights[0];
 	int pixels = width * height;
 	int channels = 3;
@@ -212,7 +211,7 @@ end:
 	struct image *image = new_image(argv[2], width, height);
 	int *temp = malloc(sizeof(int) * channels * pixels);
 	reconstruction(temp, buffer, missing, widths, heights, lengths, levels, channels);
-	transformation(image->buffer, temp, lmin, width, height, wavelet, channels);
+	transformation(image->buffer, temp, min_len, width, height, wavelet, channels);
 	free(buffer);
 	free(temp);
 	for (int i = 0; i < width * height; ++i)

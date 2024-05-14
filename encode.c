@@ -14,10 +14,10 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "vli.h"
 #include "bits.h"
 
-void transformation(int *output, int *input, int lmin, int width, int height, int wavelet, int channels)
+void transformation(int *output, int *input, int min_len, int width, int height, int wavelet, int channels)
 {
 	void (*funcs[2])(int *, int *, int, int, int, int) = { cdf53, haar };
-	dwt2d(funcs[wavelet], output, input, lmin, width, height, 1, 1, width * channels, channels);
+	dwt2d(funcs[wavelet], output, input, min_len, width, height, 1, 1, width * channels, channels);
 }
 
 void linearization(int *output, int *input, int *widths, int *heights, int *lengths, int levels, int channels)
@@ -132,10 +132,12 @@ int main(int argc, char **argv)
 		return 1;
 	int width = image->width;
 	int height = image->height;
+	int min_len = 8;
+	if (width < min_len || height < min_len)
+		return 1;
 	int pixels = width * height;
-	int lmin = 8;
 	int lengths[16], widths[16], heights[16];
-	int levels = compute_lengths(lengths, widths, heights, width, height, lmin);
+	int levels = compute_lengths(lengths, widths, heights, width, height, min_len);
 	int pixels_root = widths[0] * heights[0];
 	int capacity = 0;
 	if (argc >= 4)
@@ -143,13 +145,15 @@ int main(int argc, char **argv)
 	int wavelet = 0;
 	if (argc >= 5)
 		wavelet = atoi(argv[4]);
+	if (wavelet < 0 || wavelet > 1)
+		return 1;
 	ycocg_from_rgb(image);
 	int channels = 3;
 	for (int i = 0; i < width * height; ++i)
 		image->buffer[channels*i] -= 128;
 	int *temp = malloc(sizeof(int) * channels * pixels);
 	int *buffer = malloc(sizeof(int) * channels * pixels);
-	transformation(temp, image->buffer, lmin, width, height, wavelet, channels);
+	transformation(temp, image->buffer, min_len, width, height, wavelet, channels);
 	linearization(buffer, temp, widths, heights, lengths, levels, channels);
 	delete_image(image);
 	free(temp);
@@ -159,12 +163,10 @@ int main(int argc, char **argv)
 	struct bits_writer *bits = bits_writer(argv[2], capacity);
 	if (!bits)
 		return 1;
-	put_bit(bits, 0);
+	put_bit(bits, wavelet);
 	struct vli_writer *vli = vli_writer(bits);
-	put_vli(vli, wavelet);
 	put_vli(vli, width);
 	put_vli(vli, height);
-	put_vli(vli, lmin);
 	int meta_data = bits_count(bits);
 	fprintf(stderr, "%d bits for meta data\n", meta_data);
 	for (int chan = 0; chan < channels; ++chan)
