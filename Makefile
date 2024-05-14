@@ -4,8 +4,8 @@ CFLAGS = -std=c99 -W -Wall -Ofast
 all: encode decode
 
 test: encode decode
-	./encode input.ppm - | ./decode - output.ppm
-	compare -verbose -metric PSNR input.ppm output.ppm /dev/null ; true
+	./encode input.pnm - | ./decode - output.pnm
+	compare -verbose -metric PSNR input.pnm output.pnm /dev/null ; true
 
 %: %.c *.h
 	$(CC) $(CFLAGS) $< -o $@

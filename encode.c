@@ -9,7 +9,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "haar.h"
 #include "utils.h"
 #include "dwt.h"
-#include "ppm.h"
+#include "pnm.h"
 #include "rle.h"
 #include "vli.h"
 #include "bits.h"
@@ -124,10 +124,10 @@ int process(int *val, int num)
 int main(int argc, char **argv)
 {
 	if (argc != 3 && argc != 4 && argc != 5) {
-		fprintf(stderr, "usage: %s input.ppm output.dwt [CAPACITY] [WAVELET]\n", argv[0]);
+		fprintf(stderr, "usage: %s input.pnm output.dwt [CAPACITY] [WAVELET]\n", argv[0]);
 		return 1;
 	}
-	struct image *image = read_ppm(argv[1]);
+	struct image *image = read_pnm(argv[1]);
 	if (!image)
 		return 1;
 	int width = image->width;
@@ -147,8 +147,10 @@ int main(int argc, char **argv)
 		wavelet = atoi(argv[4]);
 	if (wavelet < 0 || wavelet > 1)
 		return 1;
-	ycocg_from_rgb(image);
-	int channels = 3;
+	int channels = image->channels;
+	int color = channels == 3;
+	if (color)
+		ycocg_from_rgb(image);
 	for (int i = 0; i < width * height; ++i)
 		image->buffer[channels*i] -= 128;
 	int *temp = malloc(sizeof(int) * channels * pixels);
@@ -165,6 +167,7 @@ int main(int argc, char **argv)
 		return 1;
 	int magic = 5527364;
 	write_bits(bits, magic, 24);
+	put_bit(bits, color);
 	put_bit(bits, wavelet);
 	struct vli_writer *vli = vli_writer(bits);
 	put_vli(vli, width);

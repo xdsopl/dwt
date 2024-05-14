@@ -9,7 +9,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "haar.h"
 #include "utils.h"
 #include "dwt.h"
-#include "ppm.h"
+#include "pnm.h"
 #include "rle.h"
 #include "vli.h"
 #include "bits.h"
@@ -127,7 +127,7 @@ int decode_root(struct vli_reader *vli, int *val, int num)
 int main(int argc, char **argv)
 {
 	if (argc != 3) {
-		fprintf(stderr, "usage: %s input.dwt output.ppm\n", argv[0]);
+		fprintf(stderr, "usage: %s input.dwt output.pnm\n", argv[0]);
 		return 1;
 	}
 	struct bits_reader *bits = bits_reader(argv[1]);
@@ -136,11 +136,12 @@ int main(int argc, char **argv)
 	int magic;
 	if (read_bits(bits, &magic, 24) || magic != 5527364)
 		return 1;
+	int color = get_bit(bits);
 	int wavelet = get_bit(bits);
 	struct vli_reader *vli = vli_reader(bits);
 	int width = get_vli(vli);
 	int height = get_vli(vli);
-	if ((wavelet|width|height) < 0)
+	if ((color|wavelet|width|height) < 0)
 		return 1;
 	int min_len = 8;
 	if (width < min_len || height < min_len)
@@ -149,7 +150,7 @@ int main(int argc, char **argv)
 	int levels = compute_lengths(lengths, widths, heights, width, height, min_len);
 	int pixels_root = widths[0] * heights[0];
 	int pixels = width * height;
-	int channels = 3;
+	int channels = color ? 3 : 1;
 	int *buffer = malloc(sizeof(int) * channels * pixels);
 	for (int i = 0; i < channels * pixels; ++i)
 		buffer[i] = 0;
@@ -211,7 +212,7 @@ end:
 	close_reader(bits);
 	for (int chan = 0; chan < channels; ++chan)
 		process(buffer+chan*pixels+pixels_root, pixels-pixels_root);
-	struct image *image = new_image(argv[2], width, height);
+	struct image *image = new_image(argv[2], width, height, channels);
 	int *temp = malloc(sizeof(int) * channels * pixels);
 	reconstruction(temp, buffer, missing, widths, heights, lengths, levels, channels);
 	transformation(image->buffer, temp, min_len, width, height, wavelet, channels);
@@ -219,8 +220,9 @@ end:
 	free(temp);
 	for (int i = 0; i < width * height; ++i)
 		image->buffer[channels*i] += 128;
-	rgb_from_ycocg(image);
-	if (!write_ppm(image))
+	if (color)
+		rgb_from_ycocg(image);
+	if (!write_pnm(image))
 		return 1;
 	delete_image(image);
 	return 0;

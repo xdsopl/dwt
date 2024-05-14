@@ -11,7 +11,7 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include <string.h>
 #include "image.h"
 
-struct image *read_ppm(char *name)
+struct image *read_pnm(char *name)
 {
 	const char *fname = "/dev/stdin";
 	if (name[0] != '-' || name[1])
@@ -21,11 +21,14 @@ struct image *read_ppm(char *name)
 		fprintf(stderr, "could not open \"%s\" file to read.\n", fname);
 		return 0;
 	}
-	if ('P' != fgetc(file) || '6' != fgetc(file)) {
-		fprintf(stderr, "file \"%s\" not P6 image.\n", fname);
+	int letter = fgetc(file);
+	int number = fgetc(file);
+	if ('P' != letter || ('5' != number && '6' != number)) {
+		fprintf(stderr, "file \"%s\" neither P5 nor P6 image.\n", fname);
 		fclose(file);
 		return 0;
 	}
+	int channels = number == '5' ? 1 : 3;
 	int integer[3];
 	struct image *image = 0;
 	int c = fgetc(file);
@@ -62,8 +65,8 @@ struct image *read_ppm(char *name)
 		fclose(file);
 		return 0;
 	}
-	image = new_image(name, integer[0], integer[1]);
-	for (int i = 0; i < 3 * image->total; i++) {
+	image = new_image(name, integer[0], integer[1], channels);
+	for (int i = 0; i < channels * image->total; i++) {
 		int v = fgetc(file);
 		if (EOF == v)
 			goto eof;
@@ -78,8 +81,10 @@ eof:
 	return 0;
 }
 
-int write_ppm(struct image *image)
+int write_pnm(struct image *image)
 {
+	int channels = image->channels;
+	assert(channels == 1 || channels == 3);
 	const char *fname = "/dev/stdout";
 	if (image->name[0] != '-' || image->name[1])
 		fname = image->name;
@@ -88,12 +93,13 @@ int write_ppm(struct image *image)
 		fprintf(stderr, "could not open \"%s\" file to write.\n", fname);
 		return 0;
 	}
-	if (!fprintf(file, "P6 %d %d 255\n", image->width, image->height)) {
+	int number = channels == 1 ? 5 : 6;
+	if (!fprintf(file, "P%d %d %d 255\n", number, image->width, image->height)) {
 		fprintf(stderr, "could not write to file \"%s\".\n", fname);
 		fclose(file);
 		return 0;
 	}
-	for (int i = 0; i < 3 * image->total; i++) {
+	for (int i = 0; i < channels * image->total; i++) {
 		if (EOF == fputc(image->buffer[i], file))
 			goto eof;
 	}

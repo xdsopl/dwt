@@ -2,22 +2,22 @@
 
 Quick start:
 
-Encode [smpte.ppm](smpte.ppm) [PNM](https://en.wikipedia.org/wiki/Netpbm) picture file to ```encoded.dwt```:
+Encode [smpte.pnm](smpte.pnm) [PNM](https://en.wikipedia.org/wiki/Netpbm) picture file to ```encoded.dwt```:
 
 ```
-./encode smpte.ppm encoded.dwt
+./encode smpte.pnm encoded.dwt
 ```
 
-Decode ```encoded.dwt``` file to ```decoded.ppm``` picture file:
+Decode ```encoded.dwt``` file to ```decoded.pnm``` picture file:
 
 ```
-./decode encoded.dwt decoded.ppm
+./decode encoded.dwt decoded.pnm
 ```
 
-Watch ```decoded.ppm``` picture file in [feh](https://feh.finalrewind.org/):
+Watch ```decoded.pnm``` picture file in [feh](https://feh.finalrewind.org/):
 
 ```
-feh decoded.ppm
+feh decoded.pnm
 ```
 
 ### Limited storage capacity
@@ -25,7 +25,7 @@ feh decoded.ppm
 Use up to ```65536``` bytes of space instead of the default ```0``` (no limit) and discard quality bytes, if necessary, to stay below ```65536``` bytes:
 
 ```
-./encode smpte.ppm encoded.dwt 65536
+./encode smpte.pnm encoded.dwt 65536
 ```
 
 ### Use different wavelet
@@ -33,7 +33,7 @@ Use up to ```65536``` bytes of space instead of the default ```0``` (no limit) a
 Use the reversible integer [Haar wavelet](https://en.wikipedia.org/wiki/Haar_wavelet) instead of the default ```0``` reversible integer [CDF](https://en.wikipedia.org/wiki/Cohen%E2%80%93Daubechies%E2%80%93Feauveau_wavelet) 5/3 wavelet:
 
 ```
-./encode smpte.ppm encoded.dwt 0 1
+./encode smpte.pnm encoded.dwt 0 1
 ```
 
 ### Reading

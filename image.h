@@ -7,11 +7,12 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #pragma once
 
 #include <stdlib.h>
+#include <assert.h>
 
 struct image {
 	int *buffer;
-	int width, height, total;
 	char *name;
+	int width, height, total, channels;
 };
 
 void delete_image(struct image *image)
@@ -20,14 +21,15 @@ void delete_image(struct image *image)
 	free(image);
 }
 
-struct image *new_image(char *name, int width, int height)
+struct image *new_image(char *name, int width, int height, int channels)
 {
 	struct image *image = malloc(sizeof(struct image));
 	image->height = height;
 	image->width = width;
 	image->total = width * height;
 	image->name = name;
-	image->buffer = malloc(3 * sizeof(int) * width * height);
+	image->channels = channels;
+	image->buffer = malloc(channels * sizeof(int) * width * height);
 	return image;
 }
 
@@ -66,12 +68,14 @@ void rgb2ycocg(int *io)
 
 void ycocg_from_rgb(struct image *image)
 {
+	assert(image->channels == 3);
 	for (int i = 0; i < image->total; i++)
 		rgb2ycocg(image->buffer + 3 * i);
 }
 
 void rgb_from_ycocg(struct image *image)
 {
+	assert(image->channels == 3);
 	for (int i = 0; i < image->total; i++)
 		ycocg2rgb(image->buffer + 3 * i);
 }
