@@ -7,7 +7,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "hilbert.h"
 #include "cdf53.h"
 #include "cdf97.h"
-#include "rint_haar.h"
+#include "haar.h"
 #include "utils.h"
 #include "dwt.h"
 #include "ppm.h"
@@ -17,7 +17,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 void transformation(float *output, float *input, int lmin, int width, int height, int wavelet, int channels)
 {
-	void (*funcs[3])(float *, float *, int, int, int, int) = { cdf53, cdf97, rint_haar };
+	void (*funcs[3])(float *, float *, int, int, int, int) = { cdf53, cdf97, haar };
 	dwt2d(funcs[wavelet], output, input, lmin, width, height, 1, 1, width * channels, channels);
 }
 

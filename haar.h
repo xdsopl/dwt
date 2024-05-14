@@ -8,7 +8,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 #include <math.h>
 
-void rint_haar(float *out, float *in, int N, int SO, int SI, int CH)
+void haar(float *out, float *in, int N, int SO, int SI, int CH)
 {
 	for (int i = 0, M = N&~1, K = N+(N&1); i < M; i += 2) {
 		for (int c = 0; c < CH; ++c) {
@@ -25,7 +25,7 @@ void rint_haar(float *out, float *in, int N, int SO, int SI, int CH)
 			out[(N-1)/2*SO+c] = in[(N-1)*SI+c];
 }
 
-void rint_ihaar(float *out, float *in, int N, int SO, int SI, int CH)
+void ihaar(float *out, float *in, int N, int SO, int SI, int CH)
 {
 	for (int i = 0, M = N&~1, K = N+(N&1); i < M; i += 2) {
 		for (int c = 0; c < CH; ++c) {
