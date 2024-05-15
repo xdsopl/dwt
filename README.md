@@ -1,42 +1,42 @@
-### Playing with lossless image compression based on the discrete wavelet transformation
+### Discrete Wavelet Transform (DWT) Based Lossless Image Compression with Bitstream Truncation Support
 
 Quick start:
 
-Encode [smpte.pnm](smpte.pnm) [PNM](https://en.wikipedia.org/wiki/Netpbm) picture file to ```encoded.dwt```:
+Encode the [smpte.pnm](smpte.pnm) [PNM](https://en.wikipedia.org/wiki/Netpbm) picture file into ```encoded.dwt```:
 
 ```
 ./encode smpte.pnm encoded.dwt
 ```
 
-Decode ```encoded.dwt``` file to ```decoded.pnm``` picture file:
+Decode ```encoded.dwt``` back to the original picture file ```decoded.pnm```:
 
 ```
 ./decode encoded.dwt decoded.pnm
 ```
 
-Watch ```decoded.pnm``` picture file in [feh](https://feh.finalrewind.org/):
+View the ```decoded.pnm``` picture file in [feh](https://feh.finalrewind.org/):
 
 ```
 feh decoded.pnm
 ```
 
-### Limited storage capacity
+### Limited Storage Capacity: Bitstream Truncation
 
-Use up to ```65536``` bytes of space instead of the default ```0``` (no limit) and discard quality bytes, if necessary, to stay below ```65536``` bytes:
+Allocate a maximum of ```65536``` bytes of space for compression. If necessary, the encoder will discard quality bytes to ensure the output stays below ```65536``` bytes:
 
 ```
 ./encode smpte.pnm encoded.dwt 65536
 ```
 
-### Use different wavelet
+### Using a Different Wavelet
 
-Use the reversible integer [Haar wavelet](https://en.wikipedia.org/wiki/Haar_wavelet) instead of the default ```0``` reversible integer [CDF](https://en.wikipedia.org/wiki/Cohen%E2%80%93Daubechies%E2%80%93Feauveau_wavelet) 5/3 wavelet:
+Optionally, utilize the [Haar wavelet](https://en.wikipedia.org/wiki/Haar_wavelet) instead of the default [CDF](https://en.wikipedia.org/wiki/Cohen%E2%80%93Daubechies%E2%80%93Feauveau_wavelet) 5/3 wavelet:
 
 ```
 ./encode smpte.pnm encoded.dwt 0 1
 ```
 
-### Reading
+### References
 
 * Run-length encodings  
 by Solomon W. Golomb - 1966
