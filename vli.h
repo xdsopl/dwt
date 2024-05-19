@@ -83,21 +83,27 @@ void vli_swp(int *a, int *b)
 	*b = t;
 }
 
+void vli_sort(int *p, int *a, int n)
+{
+	p[0] = 0;
+	for (int i = 1, j; i < n; ++i) {
+		int t = a[i];
+		for (j = i; j > 0 && t > a[j-1]; --j) {
+			a[j] = a[j-1];
+			p[j] = p[j-1];
+		}
+		a[j] = t;
+		p[j] = i;
+	}
+}
+
 int vli_map(int *hist, int *perm, int val)
 {
 	if (val >= 64)
 		return val;
 	int map = perm[val];
 	++hist[map];
-	if (hist[map] < 100)
-		return map;
-	if (val > 0 && hist[map] > hist[perm[val-1]]) {
-		vli_swp(hist+map, hist+perm[val-1]);
-		vli_swp(perm+val, perm+val-1);
-	} else if (val < 64-1 && hist[map] < hist[perm[val+1]]) {
-		vli_swp(hist+map, hist+perm[val+1]);
-		vli_swp(perm+val, perm+val+1);
-	}
+	vli_sort(perm, hist, 64);
 	return map;
 }
 
