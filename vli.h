@@ -10,17 +10,25 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 struct vli_reader {
 	struct bits_reader *bits;
+	int *hist;
+	int *perm;
 	int order;
 };
 
 struct vli_writer {
 	struct bits_writer *bits;
+	int *hist;
+	int *perm;
 	int order;
 };
 
 struct vli_reader *vli_reader(struct bits_reader *bits)
 {
 	struct vli_reader *vli = malloc(sizeof(struct vli_reader));
+	vli->hist = calloc(64, sizeof(int));
+	vli->perm = calloc(64, sizeof(int));
+	for (int i = 0; i < 64; ++i)
+		vli->perm[i] = i;
 	vli->bits = bits;
 	vli->order = 0;
 	return vli;
@@ -29,6 +37,10 @@ struct vli_reader *vli_reader(struct bits_reader *bits)
 struct vli_writer *vli_writer(struct bits_writer *bits)
 {
 	struct vli_writer *vli = malloc(sizeof(struct vli_writer));
+	vli->hist = calloc(64, sizeof(int));
+	vli->perm = calloc(64, sizeof(int));
+	for (int i = 0; i < 64; ++i)
+		vli->perm[i] = i;
 	vli->bits = bits;
 	vli->order = 0;
 	return vli;
@@ -64,8 +76,34 @@ int vli_read_bits(struct vli_reader *vli, int *b, int n)
 	return read_bits(vli->bits, b, n);
 }
 
+void vli_swp(int *a, int *b)
+{
+	int t = *a;
+	*a = *b;
+	*b = t;
+}
+
+int vli_map(int *hist, int *perm, int val)
+{
+	if (val >= 64)
+		return val;
+	int map = perm[val];
+	++hist[map];
+	if (hist[map] < 100)
+		return map;
+	if (val > 0 && hist[map] > hist[perm[val-1]]) {
+		vli_swp(hist+map, hist+perm[val-1]);
+		vli_swp(perm+val, perm+val-1);
+	} else if (val < 64-1 && hist[map] < hist[perm[val+1]]) {
+		vli_swp(hist+map, hist+perm[val+1]);
+		vli_swp(perm+val, perm+val+1);
+	}
+	return map;
+}
+
 int put_vli(struct vli_writer *vli, int val)
 {
+	val = vli_map(vli->hist, vli->perm, val);
 	int ret;
 	while (val >= 1 << vli->order) {
 		if ((ret = put_bit(vli->bits, 0)))
@@ -97,6 +135,6 @@ int get_vli(struct vli_reader *vli)
 	vli->order -= 2;
 	if (vli->order < 0)
 		vli->order = 0;
-	return val + sum;
+	return vli_map(vli->hist, vli->perm, val + sum);
 }
 

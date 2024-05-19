@@ -219,6 +219,8 @@ int main(int argc, char **argv)
 		}
 	}
 	rle_flush(rle);
+	for (int i = 0; i < 64; ++i)
+		fprintf(stderr, "%d\n", vli->hist[i]);
 end:
 	delete_rle_writer(rle);
 	delete_vli_writer(vli);
