@@ -136,16 +136,22 @@ int main(int argc, char **argv)
 	int magic;
 	if (read_bits(bits, &magic, 24) || magic != 5527364)
 		return 1;
+	int reserved;
+	if (read_bits(bits, &reserved, 6) || reserved)
+		return 1;
 	int color = get_bit(bits);
 	int wavelet = get_bit(bits);
-	struct vli_reader *vli = vli_reader(bits);
-	int width = get_vli(vli);
-	int height = get_vli(vli);
-	if ((color|wavelet|width|height) < 0)
+	if ((color|wavelet) < 0)
 		return 1;
+	int width, height;
+	if (read_bits(bits, &width, 16) || read_bits(bits, &height, 16))
+		return 1;
+	++width;
+	++height;
 	int min_len = 8;
 	if (width < min_len || height < min_len)
 		return 1;
+	struct vli_reader *vli = vli_reader(bits);
 	int lengths[16], widths[16], heights[16];
 	int levels = compute_lengths(lengths, widths, heights, width, height, min_len);
 	int pixels_root = widths[0] * heights[0];

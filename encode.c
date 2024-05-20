@@ -128,7 +128,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	struct image *image = read_pnm(argv[1]);
-	if (!image)
+	if (!image || image->width > 65536 || image->height > 65536)
 		return 1;
 	int width = image->width;
 	int height = image->height;
@@ -165,11 +165,13 @@ int main(int argc, char **argv)
 		return 1;
 	int magic = 5527364;
 	write_bits(bits, magic, 24);
+	int reserved = 0;
+	write_bits(bits, reserved, 6);
 	put_bit(bits, color);
 	put_bit(bits, wavelet);
+	write_bits(bits, width - 1, 16);
+	write_bits(bits, height - 1, 16);
 	struct vli_writer *vli = vli_writer(bits);
-	put_vli(vli, width);
-	put_vli(vli, height);
 	int meta_data = bits_count(bits);
 	fprintf(stderr, "%d bits for meta data\n", meta_data);
 	for (int chan = 0; chan < channels; ++chan)
