@@ -151,8 +151,6 @@ int main(int argc, char **argv)
 	int color = channels == 3;
 	if (color)
 		ycocg_from_rgb(image);
-	for (int i = 0; i < width * height; ++i)
-		image->buffer[channels*i] -= 128;
 	int *temp = malloc(sizeof(int) * channels * pixels);
 	int *buffer = malloc(sizeof(int) * channels * pixels);
 	transformation(temp, image->buffer, min_len, width, height, wavelet, channels);

@@ -218,8 +218,6 @@ end:
 	transformation(image->buffer, temp, min_len, width, height, wavelet, channels);
 	free(buffer);
 	free(temp);
-	for (int i = 0; i < width * height; ++i)
-		image->buffer[channels*i] += 128;
 	if (color)
 		rgb_from_ycocg(image);
 	if (!write_pnm(image))
