@@ -1,8 +1,12 @@
 encode
 decode
+*.dwt
+*.jpg
+*.jxl
+*.pgm
+*.png
 *.pnm
 *.ppm
-*.pgm
+*.webp
 !smpte.ppm
-*.dwt
 .*.swp
