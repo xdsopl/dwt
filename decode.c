@@ -223,7 +223,7 @@ end:
 	close_reader(bits);
 	for (int chan = 0; chan < channels; ++chan)
 		process(buffer+chan*pixels+pixels_root, pixels-pixels_root);
-	struct image *image = new_image(argv[2], width, height, channels);
+	struct image *image = new_image(width, height, channels);
 	int *temp = malloc(sizeof(int) * channels * pixels);
 	reconstruction(temp, buffer, missing, widths, heights, lengths, levels, channels);
 	transformation(image->buffer, temp, min_len, width, height, 1, 1, width * channels, channels);
@@ -231,7 +231,7 @@ end:
 	free(temp);
 	if (color)
 		rgb_from_ycocg(image);
-	if (!write_pnm(image))
+	if (!write_pnm(argv[2], image))
 		return 1;
 	delete_image(image);
 	return 0;

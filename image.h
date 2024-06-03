@@ -11,7 +11,6 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 
 struct image {
 	int *buffer;
-	char *name;
 	int width, height, total, channels;
 };
 
@@ -21,13 +20,12 @@ void delete_image(struct image *image)
 	free(image);
 }
 
-struct image *new_image(char *name, int width, int height, int channels)
+struct image *new_image(int width, int height, int channels)
 {
 	struct image *image = malloc(sizeof(struct image));
 	image->height = height;
 	image->width = width;
 	image->total = width * height;
-	image->name = name;
 	image->channels = channels;
 	image->buffer = malloc(channels * sizeof(int) * width * height);
 	return image;

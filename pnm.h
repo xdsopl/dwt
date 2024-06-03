@@ -11,7 +11,7 @@ Copyright 2014 Ahmet Inan <xdsopl@gmail.com>
 #include <string.h>
 #include "image.h"
 
-struct image *read_pnm(char *name)
+struct image *read_pnm(const char *name)
 {
 	const char *fname = "/dev/stdin";
 	if (name[0] != '-' || name[1])
@@ -65,7 +65,7 @@ struct image *read_pnm(char *name)
 		fclose(file);
 		return 0;
 	}
-	image = new_image(name, integer[0], integer[1], channels);
+	image = new_image(integer[0], integer[1], channels);
 	for (int i = 0; i < channels * image->total; i++) {
 		int v = fgetc(file);
 		if (EOF == v)
@@ -86,13 +86,13 @@ int clamp_pnm(int x, int a, int b)
 	return x < a ? a : x > b ? b : x;
 }
 
-int write_pnm(struct image *image)
+int write_pnm(const char *name, struct image *image)
 {
 	int channels = image->channels;
 	assert(channels == 1 || channels == 3);
 	const char *fname = "/dev/stdout";
-	if (image->name[0] != '-' || image->name[1])
-		fname = image->name;
+	if (name[0] != '-' || name[1])
+		fname = name;
 	FILE *file = fopen(fname, "w");
 	if (!file) {
 		fprintf(stderr, "could not open \"%s\" file to write.\n", fname);
