@@ -6,18 +6,26 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 #include "hilbert.h"
 #include "cdf53.h"
-#include "haar.h"
 #include "utils.h"
-#include "dwt.h"
 #include "pnm.h"
 #include "rle.h"
 #include "vli.h"
 #include "bits.h"
 
-void transformation(int *output, int *input, int min_len, int width, int height, int wavelet, int channels)
+void transformation(int *out, int *in, int N0, int W, int H, int SO, int SI, int SW, int CH)
 {
-	void (*funcs[2])(int *, int *, int, int, int, int) = { cdf53, haar };
-	dwt2d(funcs[wavelet], output, input, min_len, width, height, 1, 1, width * channels, channels);
+	for (int j = 0; j < H; ++j) {
+		cdf53(out+SO*SW*j, in+SI*SW*j, W, SO*CH, SI*CH, CH);
+		for (int i = 0; i < W*CH; ++i)
+			in[(SW*j+i)*SI] = out[(SW*j+i)*SO];
+	}
+	cdf53(out, in, H, SO*SW, SI*SW, W*CH);
+	int W2 = (W+1)/2, H2 = (H+1)/2;
+	for (int j = 0; j < H2; ++j)
+		for (int i = 0; i < W2*CH; ++i)
+			in[(SW*j+i)*SI] = out[(SW*j+i)*SO];
+	if (W2 >= N0 && H2 >= N0)
+		transformation(out, in, N0, W2, H2, SO, SI, SW, CH);
 }
 
 void linearization(int *output, int *input, int *widths, int *heights, int *lengths, int levels, int channels)
@@ -123,8 +131,8 @@ int process(int *val, int num)
 
 int main(int argc, char **argv)
 {
-	if (argc != 3 && argc != 4 && argc != 5) {
-		fprintf(stderr, "usage: %s input.pnm output.dwt [CAPACITY] [WAVELET]\n", argv[0]);
+	if (argc != 3 && argc != 4) {
+		fprintf(stderr, "usage: %s input.pnm output.dwt [CAPACITY]\n", argv[0]);
 		return 1;
 	}
 	struct image *image = read_pnm(argv[1]);
@@ -142,18 +150,13 @@ int main(int argc, char **argv)
 	int capacity = 0;
 	if (argc >= 4)
 		capacity = atoi(argv[3]);
-	int wavelet = 0;
-	if (argc >= 5)
-		wavelet = atoi(argv[4]);
-	if (wavelet < 0 || wavelet > 1)
-		return 1;
 	int channels = image->channels;
 	int color = channels == 3;
 	if (color)
 		ycocg_from_rgb(image);
 	int *temp = malloc(sizeof(int) * channels * pixels);
 	int *buffer = malloc(sizeof(int) * channels * pixels);
-	transformation(temp, image->buffer, min_len, width, height, wavelet, channels);
+	transformation(temp, image->buffer, min_len, width, height, 1, 1, width * channels, channels);
 	linearization(buffer, temp, widths, heights, lengths, levels, channels);
 	delete_image(image);
 	free(temp);
@@ -166,9 +169,8 @@ int main(int argc, char **argv)
 	int magic = 5527364;
 	write_bits(bits, magic, 24);
 	int reserved = 0;
-	write_bits(bits, reserved, 6);
+	write_bits(bits, reserved, 7);
 	put_bit(bits, color);
-	put_bit(bits, wavelet);
 	write_bits(bits, width - 1, 16);
 	write_bits(bits, height - 1, 16);
 	struct vli_writer *vli = vli_writer(bits);

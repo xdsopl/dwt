@@ -6,18 +6,26 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 #include "hilbert.h"
 #include "cdf53.h"
-#include "haar.h"
 #include "utils.h"
-#include "dwt.h"
 #include "pnm.h"
 #include "rle.h"
 #include "vli.h"
 #include "bits.h"
 
-void transformation(int *output, int *input, int min_len, int width, int height, int wavelet, int channels)
+void transformation(int *out, int *in, int N0, int W, int H, int SO, int SI, int SW, int CH)
 {
-	void (*funcs[2])(int *, int *, int, int, int, int) = { icdf53, ihaar };
-	idwt2d(funcs[wavelet], output, input, min_len, width, height, 1, 1, width * channels, channels);
+	int W2 = (W+1)/2, H2 = (H+1)/2;
+	if (W2 >= N0 && H2 >= N0)
+		transformation(out, in, N0, W2, H2, SO, SI, SW, CH);
+	icdf53(out, in, H, SO*SW, SI*SW, W*CH);
+	for (int j = 0; j < H; ++j)
+		for (int i = 0; i < W*CH; ++i)
+			in[(SW*j+i)*SI] = out[(SW*j+i)*SO];
+	for (int j = 0; j < H; ++j) {
+		icdf53(out+SO*SW*j, in+SI*SW*j, W, SO*CH, SI*CH, CH);
+		for (int i = 0; i < W*CH; ++i)
+			in[(SW*j+i)*SI] = out[(SW*j+i)*SO];
+	}
 }
 
 void reconstruction(int *output, int *input, int *missing, int *widths, int *heights, int *lengths, int levels, int channels)
@@ -137,12 +145,9 @@ int main(int argc, char **argv)
 	if (read_bits(bits, &magic, 24) || magic != 5527364)
 		return 1;
 	int reserved;
-	if (read_bits(bits, &reserved, 6) || reserved)
+	if (read_bits(bits, &reserved, 7) || reserved)
 		return 1;
 	int color = get_bit(bits);
-	int wavelet = get_bit(bits);
-	if ((color|wavelet) < 0)
-		return 1;
 	int width, height;
 	if (read_bits(bits, &width, 16) || read_bits(bits, &height, 16))
 		return 1;
@@ -221,7 +226,7 @@ end:
 	struct image *image = new_image(argv[2], width, height, channels);
 	int *temp = malloc(sizeof(int) * channels * pixels);
 	reconstruction(temp, buffer, missing, widths, heights, lengths, levels, channels);
-	transformation(image->buffer, temp, min_len, width, height, wavelet, channels);
+	transformation(image->buffer, temp, min_len, width, height, 1, 1, width * channels, channels);
 	free(buffer);
 	free(temp);
 	if (color)

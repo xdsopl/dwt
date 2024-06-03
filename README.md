@@ -28,14 +28,6 @@ Allocate a maximum of ```65536``` bytes of space for compression. If necessary, 
 ./encode smpte.pnm encoded.dwt 65536
 ```
 
-### Using a Different Wavelet
-
-Optionally, utilize the [Haar wavelet](https://en.wikipedia.org/wiki/Haar_wavelet) instead of the default [CDF](https://en.wikipedia.org/wiki/Cohen%E2%80%93Daubechies%E2%80%93Feauveau_wavelet) 5/3 wavelet:
-
-```
-./encode smpte.pnm encoded.dwt 0 1
-```
-
 ### References
 
 * Run-length encodings  
