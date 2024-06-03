@@ -141,13 +141,13 @@ int main(int argc, char **argv)
 	struct bits_reader *bits = bits_reader(argv[1]);
 	if (!bits)
 		return 1;
-	int magic;
-	if (read_bits(bits, &magic, 24) || magic != 5527364)
+	int letter;
+	if (read_bits(bits, &letter, 8) || letter != 'W')
 		return 1;
-	int reserved;
-	if (read_bits(bits, &reserved, 7) || reserved)
+	int number;
+	if (read_bits(bits, &number, 8) || (number != '5' && number != '6'))
 		return 1;
-	int color = get_bit(bits);
+	int color = number == '6';
 	int width, height;
 	if (read_bits(bits, &width, 16) || read_bits(bits, &height, 16))
 		return 1;

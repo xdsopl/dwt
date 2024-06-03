@@ -166,11 +166,8 @@ int main(int argc, char **argv)
 	struct bits_writer *bits = bits_writer(argv[2], capacity);
 	if (!bits)
 		return 1;
-	int magic = 5527364;
-	write_bits(bits, magic, 24);
-	int reserved = 0;
-	write_bits(bits, reserved, 7);
-	put_bit(bits, color);
+	write_bits(bits, 'W', 8);
+	write_bits(bits, color ? '6' : '5', 8);
 	write_bits(bits, width - 1, 16);
 	write_bits(bits, height - 1, 16);
 	struct vli_writer *vli = vli_writer(bits);
