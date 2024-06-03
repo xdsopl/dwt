@@ -115,7 +115,7 @@ int get_bit(struct bits_reader *bits)
 	if (!bits->cnt) {
 		int c = fgetc(bits->file);
 		if (c == EOF) {
-			fprintf(stderr, "could not read from file \"%s\".\n", bits->name);
+			fprintf(stderr, "reached end of file \"%s\".\n", bits->name);
 			return -1;
 		}
 		bits->acc = c;
