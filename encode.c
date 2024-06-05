@@ -16,15 +16,15 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 void transformation(int *out, int *in, int N0, int W, int H, int SO, int SI, int SW, int CH)
 {
 	for (int j = 0; j < H; ++j) {
-		cdf53(out+SO*SW*j, in+SI*SW*j, W, SO*CH, SI*CH, CH);
-		for (int i = 0; i < W*CH; ++i)
-			in[(SW*j+i)*SI] = out[(SW*j+i)*SO];
+		cdf53(out + SO * SW * j, in + SI * SW * j, W, SO * CH, SI * CH, CH);
+		for (int i = 0; i < W * CH; ++i)
+			in[(SW * j + i) * SI] = out[(SW * j + i) * SO];
 	}
-	cdf53(out, in, H, SO*SW, SI*SW, W*CH);
-	int W2 = (W+1)/2, H2 = (H+1)/2;
+	cdf53(out, in, H, SO * SW, SI * SW, W * CH);
+	int W2 = (W + 1) / 2, H2 = (H + 1) / 2;
 	for (int j = 0; j < H2; ++j)
-		for (int i = 0; i < W2*CH; ++i)
-			in[(SW*j+i)*SI] = out[(SW*j+i)*SO];
+		for (int i = 0; i < W2 * CH; ++i)
+			in[(SW * j + i) * SI] = out[(SW * j + i) * SO];
 	if (W2 >= N0 && H2 >= N0)
 		transformation(out, in, N0, W2, H2, SO, SI, SW, CH);
 }
@@ -37,19 +37,19 @@ void linearization(int *output, int *input, int *widths, int *heights, int *leng
 	for (int y = 0; y < heights[0]; ++y) {
 		for (int x = 0; x < widths[0]; ++x) {
 			for (int chan = 0; chan < channels; ++chan) {
-				int v = input[channels*(width*y+x)+chan];
-				output[chan*pixels] = v;
+				int v = input[channels * (width * y + x) + chan];
+				output[chan * pixels] = v;
 			}
 			++output;
 		}
 	}
 	for (int l = 0; l < levels; ++l) {
-		for (int i = 0; i < lengths[l+1] * lengths[l+1]; ++i) {
-			struct position pos = hilbert(lengths[l+1], i);
-			if ((pos.x >= widths[l] || pos.y >= heights[l]) && pos.x < widths[l+1] && pos.y < heights[l+1]) {
+		for (int i = 0; i < lengths[l + 1] * lengths[l + 1]; ++i) {
+			struct position pos = hilbert(lengths[l + 1], i);
+			if ((pos.x >= widths[l] || pos.y >= heights[l]) && pos.x < widths[l + 1] && pos.y < heights[l + 1]) {
 				for (int chan = 0; chan < channels; ++chan) {
-					int v = input[channels*(width*pos.y+pos.x)+chan];
-					output[chan*pixels] = v;
+					int v = input[channels * (width * pos.y + pos.x) + chan];
+					output[chan * pixels] = v;
 				}
 				++output;
 			}
@@ -163,7 +163,7 @@ int main(int argc, char **argv)
 	free(temp);
 	int planes[channels];
 	for (int chan = 0; chan < channels; ++chan)
-		planes[chan] = process(buffer+chan*pixels+pixels_root, pixels-pixels_root);
+		planes[chan] = process(buffer + chan * pixels + pixels_root, pixels - pixels_root);
 	struct bytes_writer *bytes = bytes_writer(argv[2], capacity);
 	if (!bytes)
 		return 1;
@@ -176,7 +176,7 @@ int main(int argc, char **argv)
 	int meta_data = bits_count(bits);
 	fprintf(stderr, "%d bits for meta data\n", meta_data);
 	for (int chan = 0; chan < channels; ++chan)
-		encode_root(vli, buffer+chan*pixels, pixels_root);
+		encode_root(vli, buffer + chan * pixels, pixels_root);
 	int root_image = bits_count(bits);
 	fprintf(stderr, "%d bits for root image\n", root_image - meta_data);
 	for (int chan = 0; chan < channels; ++chan)
@@ -190,31 +190,31 @@ int main(int argc, char **argv)
 	struct rle_writer *rle = rle_writer(vli);
 	if (planes_max == planes[0]) {
 		int num = widths[1] * heights[1] - pixels_root;
-		if (encode(rle, buffer+pixels_root, num, planes[0]-1))
+		if (encode(rle, buffer + pixels_root, num, planes[0] - 1))
 			goto end;
 	}
 	for (int layers = 0; layers < layers_max; ++layers) {
-		for (int l = 0, *buf = buffer+pixels_root,
-		num = widths[l+1] * heights[l+1] - widths[l] * heights[l];
-		l < levels && l <= layers+1; buf += num, ++l,
-		num = widths[l+1] * heights[l+1] - widths[l] * heights[l]) {
+		for (int l = 0, *buf = buffer + pixels_root,
+			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l];
+			l < levels && l <= layers + 1; buf += num, ++l,
+			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l]) {
 			for (int chan = 0; chan < 1; ++chan) {
-				int plane = planes_max-1 - (layers+1-l);
+				int plane = planes_max - 1 - (layers + 1 - l);
 				if (plane < 0 || plane >= planes[chan])
 					continue;
-				if (encode(rle, buf+chan*pixels, num, plane))
+				if (encode(rle, buf + chan * pixels, num, plane))
 					goto end;
 			}
 		}
-		for (int l = 0, *buf = buffer+pixels_root,
-		num = widths[l+1] * heights[l+1] - widths[l] * heights[l];
-		l < levels && l <= layers; buf += num, ++l,
-		num = widths[l+1] * heights[l+1] - widths[l] * heights[l]) {
+		for (int l = 0, *buf = buffer + pixels_root,
+			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l];
+			l < levels && l <= layers; buf += num, ++l,
+			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l]) {
 			for (int chan = 1; chan < channels; ++chan) {
-				int plane = planes_max-1 - (layers-l);
+				int plane = planes_max - 1 - (layers - l);
 				if (plane < 0 || plane >= planes[chan])
 					continue;
-				if (encode(rle, buf+chan*pixels, num, plane))
+				if (encode(rle, buf + chan * pixels, num, plane))
 					goto end;
 			}
 		}

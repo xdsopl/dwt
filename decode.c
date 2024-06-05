@@ -15,17 +15,17 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 void transformation(int *out, int *in, int N0, int W, int H, int SO, int SI, int SW, int CH)
 {
-	int W2 = (W+1)/2, H2 = (H+1)/2;
+	int W2 = (W + 1) / 2, H2 = (H + 1) / 2;
 	if (W2 >= N0 && H2 >= N0)
 		transformation(out, in, N0, W2, H2, SO, SI, SW, CH);
-	icdf53(out, in, H, SO*SW, SI*SW, W*CH);
+	icdf53(out, in, H, SO * SW, SI * SW, W * CH);
 	for (int j = 0; j < H; ++j)
-		for (int i = 0; i < W*CH; ++i)
-			in[(SW*j+i)*SI] = out[(SW*j+i)*SO];
+		for (int i = 0; i < W * CH; ++i)
+			in[(SW * j + i) * SI] = out[(SW * j + i) * SO];
 	for (int j = 0; j < H; ++j) {
-		icdf53(out+SO*SW*j, in+SI*SW*j, W, SO*CH, SI*CH, CH);
-		for (int i = 0; i < W*CH; ++i)
-			in[(SW*j+i)*SI] = out[(SW*j+i)*SO];
+		icdf53(out + SO * SW * j, in + SI * SW * j, W, SO * CH, SI * CH, CH);
+		for (int i = 0; i < W * CH; ++i)
+			in[(SW * j + i) * SI] = out[(SW * j + i) * SO];
 	}
 }
 
@@ -37,19 +37,19 @@ void reconstruction(int *output, int *input, int *missing, int *widths, int *hei
 	for (int y = 0; y < heights[0]; ++y) {
 		for (int x = 0; x < widths[0]; ++x) {
 			for (int chan = 0; chan < channels; ++chan) {
-				int v = input[chan*pixels];
-				output[channels*(width*y+x)+chan] = v;
+				int v = input[chan * pixels];
+				output[channels * (width * y + x) + chan] = v;
 			}
 			++input;
 		}
 	}
 	for (int l = 0; l < levels; ++l) {
-		for (int i = 0; i < lengths[l+1] * lengths[l+1]; ++i) {
-			struct position pos = hilbert(lengths[l+1], i);
-			if ((pos.x >= widths[l] || pos.y >= heights[l]) && pos.x < widths[l+1] && pos.y < heights[l+1]) {
+		for (int i = 0; i < lengths[l + 1] * lengths[l + 1]; ++i) {
+			struct position pos = hilbert(lengths[l + 1], i);
+			if ((pos.x >= widths[l] || pos.y >= heights[l]) && pos.x < widths[l + 1] && pos.y < heights[l + 1]) {
 				for (int chan = 0; chan < channels; ++chan) {
-					int v = input[chan*pixels];
-					int m = missing[chan*levels+l];
+					int v = input[chan * pixels];
+					int m = missing[chan * levels + l];
 					if (m) {
 						int bias = 1 << (m - 1);
 						if (v < 0)
@@ -57,7 +57,7 @@ void reconstruction(int *output, int *input, int *missing, int *widths, int *hei
 						else if (v > 0)
 							v += bias;
 					}
-					output[channels*(width*pos.y+pos.x)+chan] = v;
+					output[channels * (width * pos.y + pos.x) + chan] = v;
 				}
 				++input;
 			}
@@ -110,9 +110,9 @@ void process(int *val, int num)
 	int sig_mask = 1 << sig_pos;
 	int ref_mask = 1 << ref_pos;
 	for (int i = 0; i < num; ++i) {
-		val[i] &= ~(sig_mask|ref_mask);
+		val[i] &= ~(sig_mask | ref_mask);
 		if (val[i] & sgn_mask)
-			val[i] = -(val[i]^sgn_mask);
+			val[i] = -(val[i] ^ sgn_mask);
 	}
 }
 
@@ -122,7 +122,7 @@ int decode_root(struct vli_reader *vli, int *val, int num)
 	if (cnt < 0)
 		return cnt;
 	for (int i = 0; cnt && i < num; ++i) {
-		int ret = vli_read_bits(vli, val+i, cnt);
+		int ret = vli_read_bits(vli, val + i, cnt);
 		if (ret)
 			return ret;
 		if (val[i] && (ret = vli_get_bit(vli)))
@@ -168,7 +168,7 @@ int main(int argc, char **argv)
 	for (int i = 0; i < channels * pixels; ++i)
 		buffer[i] = 0;
 	for (int chan = 0; chan < channels; ++chan)
-		if (decode_root(vli, buffer+chan*pixels, pixels_root))
+		if (decode_root(vli, buffer + chan * pixels, pixels_root))
 			return 1;
 	int planes[channels];
 	for (int chan = 0; chan < channels; ++chan)
@@ -180,42 +180,42 @@ int main(int argc, char **argv)
 			planes_max = planes[chan];
 	int maximum = levels > planes_max ? levels : planes_max;
 	int layers_max = 2 * maximum - 1;
-	int missing[channels*levels];
+	int missing[channels * levels];
 	for (int chan = 0; chan < channels; ++chan)
 		for (int i = 0; i < levels; ++i)
-			missing[chan*levels+i] = planes[chan];
+			missing[chan * levels + i] = planes[chan];
 	struct rle_reader *rle = rle_reader(vli);
 	if (planes_max == planes[0]) {
 		int num = widths[1] * heights[1] - pixels_root;
-		if (decode(rle, buffer+pixels_root, num, planes[0]-1))
+		if (decode(rle, buffer + pixels_root, num, planes[0] - 1))
 			goto end;
 		--missing[0];
 	}
 	for (int layers = 0; layers < layers_max; ++layers) {
-		for (int l = 0, *buf = buffer+pixels_root,
-		num = widths[l+1] * heights[l+1] - widths[l] * heights[l];
-		l < levels && l <= layers+1; buf += num, ++l,
-		num = widths[l+1] * heights[l+1] - widths[l] * heights[l]) {
+		for (int l = 0, *buf = buffer + pixels_root,
+			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l];
+			l < levels && l <= layers + 1; buf += num, ++l,
+			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l]) {
 			for (int chan = 0; chan < 1; ++chan) {
-				int plane = planes_max-1 - (layers+1-l);
+				int plane = planes_max - 1 - (layers + 1 - l);
 				if (plane < 0 || plane >= planes[chan])
 					continue;
-				if (decode(rle, buf+chan*pixels, num, plane))
+				if (decode(rle, buf + chan * pixels, num, plane))
 					goto end;
-				--missing[chan*levels+l];
+				--missing[chan * levels + l];
 			}
 		}
-		for (int l = 0, *buf = buffer+pixels_root,
-		num = widths[l+1] * heights[l+1] - widths[l] * heights[l];
-		l < levels && l <= layers; buf += num, ++l,
-		num = widths[l+1] * heights[l+1] - widths[l] * heights[l]) {
+		for (int l = 0, *buf = buffer + pixels_root,
+			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l];
+			l < levels && l <= layers; buf += num, ++l,
+			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l]) {
 			for (int chan = 1; chan < channels; ++chan) {
-				int plane = planes_max-1 - (layers-l);
+				int plane = planes_max - 1 - (layers - l);
 				if (plane < 0 || plane >= planes[chan])
 					continue;
-				if (decode(rle, buf+chan*pixels, num, plane))
+				if (decode(rle, buf + chan * pixels, num, plane))
 					goto end;
-				--missing[chan*levels+l];
+				--missing[chan * levels + l];
 			}
 		}
 	}
@@ -225,7 +225,7 @@ end:
 	close_bits_reader(bits);
 	close_bytes_reader(bytes);
 	for (int chan = 0; chan < channels; ++chan)
-		process(buffer+chan*pixels+pixels_root, pixels-pixels_root);
+		process(buffer + chan * pixels + pixels_root, pixels - pixels_root);
 	struct image *image = new_image(width, height, channels);
 	int *temp = malloc(sizeof(int) * channels * pixels);
 	reconstruction(temp, buffer, missing, widths, heights, lengths, levels, channels);
