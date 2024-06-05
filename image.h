@@ -31,11 +31,16 @@ struct image *new_image(int width, int height, int channels)
 	return image;
 }
 
+int clamp_image(int x, int a, int b)
+{
+	return x < a ? a : x > b ? b : x;
+}
+
 void ycocg2rgb(int *io)
 {
-	int Y = io[0];
-	int U = io[1];
-	int V = io[2];
+	int Y = clamp_image(io[0], 0, 255);
+	int U = clamp_image(io[1], -255, 255);
+	int V = clamp_image(io[2], -255, 255);
 	int T = Y - V / 2;
 	int G = V + T;
 	int B = T - U / 2;
