@@ -11,6 +11,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "rle.h"
 #include "vli.h"
 #include "bits.h"
+#include "bytes.h"
 
 void transformation(int *out, int *in, int N0, int W, int H, int SO, int SI, int SW, int CH)
 {
@@ -138,24 +139,25 @@ int main(int argc, char **argv)
 		fprintf(stderr, "usage: %s input.dwt output.pnm\n", argv[0]);
 		return 1;
 	}
-	struct bits_reader *bits = bits_reader(argv[1]);
-	if (!bits)
+	struct bytes_reader *bytes = bytes_reader(argv[1]);
+	if (!bytes)
 		return 1;
-	int letter;
-	if (read_bits(bits, &letter, 8) || letter != 'W')
+	int letter = get_byte(bytes);
+	if (letter != 'W')
 		return 1;
-	int number;
-	if (read_bits(bits, &number, 8) || (number != '5' && number != '6'))
+	int number = get_byte(bytes);
+	if (number != '5' && number != '6')
 		return 1;
 	int color = number == '6';
 	int width, height;
-	if (read_bits(bits, &width, 16) || read_bits(bits, &height, 16))
+	if (read_bytes(bytes, &width, 2) || read_bytes(bytes, &height, 2))
 		return 1;
 	++width;
 	++height;
 	int min_len = 8;
 	if (width < min_len || height < min_len)
 		return 1;
+	struct bits_reader *bits = bits_reader(bytes);
 	struct vli_reader *vli = vli_reader(bits);
 	int lengths[16], widths[16], heights[16];
 	int levels = compute_lengths(lengths, widths, heights, width, height, min_len);
@@ -220,7 +222,8 @@ int main(int argc, char **argv)
 end:
 	delete_rle_reader(rle);
 	delete_vli_reader(vli);
-	close_reader(bits);
+	close_bits_reader(bits);
+	close_bytes_reader(bytes);
 	for (int chan = 0; chan < channels; ++chan)
 		process(buffer+chan*pixels+pixels_root, pixels-pixels_root);
 	struct image *image = new_image(width, height, channels);

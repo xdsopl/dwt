@@ -11,6 +11,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "rle.h"
 #include "vli.h"
 #include "bits.h"
+#include "bytes.h"
 
 void transformation(int *out, int *in, int N0, int W, int H, int SO, int SI, int SW, int CH)
 {
@@ -163,13 +164,14 @@ int main(int argc, char **argv)
 	int planes[channels];
 	for (int chan = 0; chan < channels; ++chan)
 		planes[chan] = process(buffer+chan*pixels+pixels_root, pixels-pixels_root);
-	struct bits_writer *bits = bits_writer(argv[2], capacity);
-	if (!bits)
+	struct bytes_writer *bytes = bytes_writer(argv[2], capacity);
+	if (!bytes)
 		return 1;
-	write_bits(bits, 'W', 8);
-	write_bits(bits, color ? '6' : '5', 8);
-	write_bits(bits, width - 1, 16);
-	write_bits(bits, height - 1, 16);
+	put_byte(bytes, 'W');
+	put_byte(bytes, color ? '6' : '5');
+	write_bytes(bytes, width - 1, 2);
+	write_bytes(bytes, height - 1, 2);
+	struct bits_writer *bits = bits_writer(bytes);
 	struct vli_writer *vli = vli_writer(bits);
 	int meta_data = bits_count(bits);
 	fprintf(stderr, "%d bits for meta data\n", meta_data);
@@ -223,10 +225,10 @@ end:
 	delete_vli_writer(vli);
 	free(buffer);
 	int cnt = bits_count(bits);
-	int bytes = (cnt + 7) / 8;
-	int kib = (bytes + 512) / 1024;
+	close_bits_writer(bits);
+	int kib = (bytes_count(bytes) + 512) / 1024;
+	close_bytes_writer(bytes);
 	fprintf(stderr, "%d bits (%d KiB) encoded\n", cnt, kib);
-	close_writer(bits);
 	return 0;
 }
 

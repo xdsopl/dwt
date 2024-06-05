@@ -1,101 +1,68 @@
 /*
-Read and write bits to and from a file
+Read and write bits
 
 Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 */
 
 #pragma once
 
-#include <stdlib.h>
-#include <stdio.h>
+#include "bytes.h"
 
 struct bits_reader {
-	FILE *file;
-	char *name;
+	struct bytes_reader *bytes;
 	int acc;
 	int cnt;
 };
 
 struct bits_writer {
-	FILE *file;
-	char *name;
+	struct bytes_writer *bytes;
 	int acc;
 	int cnt;
-	int cap;
-	int num;
 };
 
-struct bits_reader *bits_reader(char *name)
+struct bits_reader *bits_reader(struct bytes_reader *bytes)
 {
-	const char *fname = "/dev/stdin";
-	if (name[0] != '-' || name[1])
-		fname = name;
-	FILE *file = fopen(fname, "r");
-	if (!file) {
-		fprintf(stderr, "could not open \"%s\" file to read.\n", fname);
-		return 0;
-	}
 	struct bits_reader *bits = malloc(sizeof(struct bits_reader));
-	bits->file = file;
-	bits->name = name;
+	bits->bytes = bytes;
 	bits->acc = 0;
 	bits->cnt = 0;
 	return bits;
 }
 
-struct bits_writer *bits_writer(char *name, int bytes)
+struct bits_writer *bits_writer(struct bytes_writer *bytes)
 {
-	const char *fname = "/dev/stdout";
-	if (name[0] != '-' || name[1])
-		fname = name;
-	FILE *file = fopen(fname, "w");
-	if (!file) {
-		fprintf(stderr, "could not open \"%s\" file to write.\n", fname);
-		return 0;
-	}
 	struct bits_writer *bits = malloc(sizeof(struct bits_writer));
-	bits->file = file;
-	bits->name = name;
+	bits->bytes = bytes;
 	bits->acc = 0;
 	bits->cnt = 0;
-	bits->cap = 8 * bytes;
-	bits->num = 0;
 	return bits;
 }
 
 int bits_count(struct bits_writer *bits)
 {
-	return bits->num * 8 + bits->cnt;
+	return bits->cnt + 8 * bytes_count(bits->bytes);
 }
 
-void close_reader(struct bits_reader *bits)
+void close_bits_reader(struct bits_reader *bits)
 {
-	fclose(bits->file);
 	free(bits);
 }
 
-void close_writer(struct bits_writer *bits)
+void close_bits_writer(struct bits_writer *bits)
 {
-	if (bits->cnt && bits->acc != fputc(bits->acc, bits->file))
-		fprintf(stderr, "could not write to file \"%s\".\n", bits->name);
-	fclose(bits->file);
+	if (bits->cnt)
+		put_byte(bits->bytes, bits->acc);
 	free(bits);
 }
 
 int put_bit(struct bits_writer *bits, int b)
 {
-	if (bits->cap > 0 && bits->num * 8 + bits->cnt >= bits->cap)
-		return -2;
 	bits->acc |= !!b << bits->cnt++;
 	if (bits->cnt >= 8) {
 		bits->cnt -= 8;
-		bits->num += 1;
-		int c = bits->acc & 255;
+		int b = bits->acc;
 		bits->acc >>= 8;
-		if (c != fputc(c, bits->file)) {
-			fprintf(stderr, "could not write to file \"%s\".\n", bits->name);
-			return -1;
-		}
+		return put_byte(bits->bytes, b);
 	}
 	return 0;
 }
@@ -103,7 +70,7 @@ int put_bit(struct bits_writer *bits, int b)
 int write_bits(struct bits_writer *bits, int b, int n)
 {
 	for (int i = 0; i < n; ++i) {
-		int ret = put_bit(bits, (b>>i)&1);
+		int ret = put_bit(bits, (b >> i) & 1);
 		if (ret)
 			return ret;
 	}
@@ -113,12 +80,10 @@ int write_bits(struct bits_writer *bits, int b, int n)
 int get_bit(struct bits_reader *bits)
 {
 	if (!bits->cnt) {
-		int c = fgetc(bits->file);
-		if (c == EOF) {
-			fprintf(stderr, "reached end of file \"%s\".\n", bits->name);
-			return -1;
-		}
-		bits->acc = c;
+		int b = get_byte(bits->bytes);
+		if (b < 0)
+			return b;
+		bits->acc = b;
 		bits->cnt = 8;
 	}
 	int b = bits->acc & 1;
