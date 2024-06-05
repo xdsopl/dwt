@@ -76,8 +76,7 @@ int put_byte(struct bytes_writer *bytes, int b)
 {
 	if (bytes->cap > 0 && bytes->cnt >= bytes->cap)
 		return -2;
-	b &= 255;
-	if (b != fputc(b, bytes->file)) {
+	if (EOF == fputc(b & 255, bytes->file)) {
 		fprintf(stderr, "could not write to file \"%s\"\n", bytes->name);
 		return -1;
 	}
