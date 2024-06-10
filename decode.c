@@ -49,9 +49,9 @@ void reconstruction(int *output, int *input, int *missing, int *widths, int *hei
 			if ((pos.x >= widths[l] || pos.y >= heights[l]) && pos.x < widths[l + 1] && pos.y < heights[l + 1]) {
 				for (int chan = 0; chan < channels; ++chan) {
 					int v = input[chan * pixels];
-					int m = missing[chan * levels + l];
-					if (m) {
-						int bias = 1 << (m - 1);
+					int m = missing[chan * levels + l] - 2;
+					if (m >= 0) {
+						int bias = 1 << m;
 						if (v < 0)
 							v -= bias;
 						else if (v > 0)
