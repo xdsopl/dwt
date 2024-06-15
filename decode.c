@@ -33,11 +33,11 @@ void reconstruction(int *output, int *input, int *missing, int *widths, int *hei
 {
 	int width = widths[levels];
 	int height = heights[levels];
-	int pixels = width * height;
+	int total = width * height;
 	for (int y = 0; y < heights[0]; ++y) {
 		for (int x = 0; x < widths[0]; ++x) {
 			for (int chan = 0; chan < channels; ++chan) {
-				int v = input[chan * pixels];
+				int v = input[chan * total];
 				output[channels * (width * y + x) + chan] = v;
 			}
 			++input;
@@ -48,7 +48,7 @@ void reconstruction(int *output, int *input, int *missing, int *widths, int *hei
 			struct position pos = hilbert(lengths[l + 1], i);
 			if ((pos.x >= widths[l] || pos.y >= heights[l]) && pos.x < widths[l + 1] && pos.y < heights[l + 1]) {
 				for (int chan = 0; chan < channels; ++chan) {
-					int v = input[chan * pixels];
+					int v = input[chan * total];
 					int m = missing[chan * levels + l] - 2;
 					if (m >= 0) {
 						int bias = 1 << m;
@@ -65,7 +65,7 @@ void reconstruction(int *output, int *input, int *missing, int *widths, int *hei
 	}
 }
 
-int decode(struct rle_reader *rle, int *val, int num, int plane)
+int decode_plane(struct rle_reader *rle, int *val, int num, int plane)
 {
 	int int_bits = sizeof(int) * 8;
 	int sgn_pos = int_bits - 1;
@@ -159,16 +159,15 @@ int main(int argc, char **argv)
 		return 1;
 	struct bits_reader *bits = bits_reader(bytes);
 	struct vli_reader *vli = vli_reader(bits);
-	int lengths[16], widths[16], heights[16];
-	int levels = compute_lengths(lengths, widths, heights, width, height, min_len);
-	int pixels_root = widths[0] * heights[0];
-	int pixels = width * height;
+	int lengths[16], pixels[16], widths[16], heights[16];
+	int levels = compute_lengths(lengths, pixels, widths, heights, width, height, min_len);
+	int total = width * height;
 	int channels = color ? 3 : 1;
-	int *buffer = malloc(sizeof(int) * channels * pixels);
-	for (int i = 0; i < channels * pixels; ++i)
+	int *buffer = malloc(sizeof(int) * channels * total);
+	for (int i = 0; i < channels * total; ++i)
 		buffer[i] = 0;
 	for (int chan = 0; chan < channels; ++chan)
-		if (decode_root(vli, buffer + chan * pixels, pixels_root))
+		if (decode_root(vli, buffer + chan * total, pixels[0]))
 			return 1;
 	int planes[channels];
 	for (int chan = 0; chan < channels; ++chan)
@@ -186,34 +185,34 @@ int main(int argc, char **argv)
 			missing[chan * levels + i] = planes[chan];
 	struct rle_reader *rle = rle_reader(vli);
 	if (planes_max == planes[0]) {
-		int num = widths[1] * heights[1] - pixels_root;
-		if (decode(rle, buffer + pixels_root, num, planes[0] - 1))
+		int num = pixels[1] - pixels[0];
+		if (decode_plane(rle, buffer + pixels[0], num, planes[0] - 1))
 			goto end;
 		--missing[0];
 	}
 	for (int layers = 0; layers < layers_max; ++layers) {
-		for (int l = 0, *buf = buffer + pixels_root,
-			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l];
+		for (int l = 0, *buf = buffer + pixels[0],
+			num = pixels[l + 1] - pixels[l];
 			l < levels && l <= layers + 1; buf += num, ++l,
-			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l]) {
+			num = pixels[l + 1] - pixels[l]) {
 			for (int chan = 0; chan < 1; ++chan) {
 				int plane = planes_max - 1 - (layers + 1 - l);
 				if (plane < 0 || plane >= planes[chan])
 					continue;
-				if (decode(rle, buf + chan * pixels, num, plane))
+				if (decode_plane(rle, buf + chan * total, num, plane))
 					goto end;
 				--missing[chan * levels + l];
 			}
 		}
-		for (int l = 0, *buf = buffer + pixels_root,
-			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l];
+		for (int l = 0, *buf = buffer + pixels[0],
+			num = pixels[l + 1] - pixels[l];
 			l < levels && l <= layers; buf += num, ++l,
-			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l]) {
+			num = pixels[l + 1] - pixels[l]) {
 			for (int chan = 1; chan < channels; ++chan) {
 				int plane = planes_max - 1 - (layers - l);
 				if (plane < 0 || plane >= planes[chan])
 					continue;
-				if (decode(rle, buf + chan * pixels, num, plane))
+				if (decode_plane(rle, buf + chan * total, num, plane))
 					goto end;
 				--missing[chan * levels + l];
 			}
@@ -225,9 +224,9 @@ end:
 	close_bits_reader(bits);
 	close_bytes_reader(bytes);
 	for (int chan = 0; chan < channels; ++chan)
-		process(buffer + chan * pixels + pixels_root, pixels - pixels_root);
+		process(buffer + chan * total + pixels[0], total - pixels[0]);
 	struct image *image = new_image(width, height, channels);
-	int *temp = malloc(sizeof(int) * channels * pixels);
+	int *temp = malloc(sizeof(int) * channels * total);
 	reconstruction(temp, buffer, missing, widths, heights, lengths, levels, channels);
 	transformation(image->buffer, temp, min_len, width, height, 1, 1, width * channels, channels);
 	free(buffer);

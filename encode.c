@@ -33,12 +33,12 @@ void linearization(int *output, int *input, int *widths, int *heights, int *leng
 {
 	int width = widths[levels];
 	int height = heights[levels];
-	int pixels = width * height;
+	int total = width * height;
 	for (int y = 0; y < heights[0]; ++y) {
 		for (int x = 0; x < widths[0]; ++x) {
 			for (int chan = 0; chan < channels; ++chan) {
 				int v = input[channels * (width * y + x) + chan];
-				output[chan * pixels] = v;
+				output[chan * total] = v;
 			}
 			++output;
 		}
@@ -49,7 +49,7 @@ void linearization(int *output, int *input, int *widths, int *heights, int *leng
 			if ((pos.x >= widths[l] || pos.y >= heights[l]) && pos.x < widths[l + 1] && pos.y < heights[l + 1]) {
 				for (int chan = 0; chan < channels; ++chan) {
 					int v = input[channels * (width * pos.y + pos.x) + chan];
-					output[chan * pixels] = v;
+					output[chan * total] = v;
 				}
 				++output;
 			}
@@ -57,7 +57,7 @@ void linearization(int *output, int *input, int *widths, int *heights, int *leng
 	}
 }
 
-int encode(struct rle_writer *rle, int *val, int num, int plane)
+int encode_plane(struct rle_writer *rle, int *val, int num, int plane)
 {
 	int bit_mask = 1 << plane;
 	int int_bits = sizeof(int) * 8;
@@ -144,10 +144,9 @@ int main(int argc, char **argv)
 	int min_len = 8;
 	if (width < min_len || height < min_len)
 		return 1;
-	int pixels = width * height;
-	int lengths[16], widths[16], heights[16];
-	int levels = compute_lengths(lengths, widths, heights, width, height, min_len);
-	int pixels_root = widths[0] * heights[0];
+	int total = width * height;
+	int lengths[16], pixels[16], widths[16], heights[16];
+	int levels = compute_lengths(lengths, pixels, widths, heights, width, height, min_len);
 	int capacity = 0;
 	if (argc >= 4)
 		capacity = atoi(argv[3]);
@@ -155,15 +154,15 @@ int main(int argc, char **argv)
 	int color = channels == 3;
 	if (color)
 		ycocg_from_rgb(image);
-	int *temp = malloc(sizeof(int) * channels * pixels);
-	int *buffer = malloc(sizeof(int) * channels * pixels);
+	int *temp = malloc(sizeof(int) * channels * total);
+	int *buffer = malloc(sizeof(int) * channels * total);
 	transformation(temp, image->buffer, min_len, width, height, 1, 1, width * channels, channels);
 	linearization(buffer, temp, widths, heights, lengths, levels, channels);
 	delete_image(image);
 	free(temp);
 	int planes[channels];
 	for (int chan = 0; chan < channels; ++chan)
-		planes[chan] = process(buffer + chan * pixels + pixels_root, pixels - pixels_root);
+		planes[chan] = process(buffer + chan * total + pixels[0], total - pixels[0]);
 	struct bytes_writer *bytes = bytes_writer(argv[2], capacity);
 	if (!bytes)
 		return 1;
@@ -176,7 +175,7 @@ int main(int argc, char **argv)
 	int meta_data = bits_count(bits);
 	fprintf(stderr, "%d bits for meta data\n", meta_data);
 	for (int chan = 0; chan < channels; ++chan)
-		encode_root(vli, buffer + chan * pixels, pixels_root);
+		encode_root(vli, buffer + chan * total, pixels[0]);
 	int root_image = bits_count(bits);
 	fprintf(stderr, "%d bits for root image\n", root_image - meta_data);
 	for (int chan = 0; chan < channels; ++chan)
@@ -189,32 +188,32 @@ int main(int argc, char **argv)
 	int layers_max = 2 * maximum - 1;
 	struct rle_writer *rle = rle_writer(vli);
 	if (planes_max == planes[0]) {
-		int num = widths[1] * heights[1] - pixels_root;
-		if (encode(rle, buffer + pixels_root, num, planes[0] - 1))
+		int num = pixels[1] - pixels[0];
+		if (encode_plane(rle, buffer + pixels[0], num, planes[0] - 1))
 			goto end;
 	}
 	for (int layers = 0; layers < layers_max; ++layers) {
-		for (int l = 0, *buf = buffer + pixels_root,
-			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l];
+		for (int l = 0, *buf = buffer + pixels[0],
+			num = pixels[l + 1] - pixels[l];
 			l < levels && l <= layers + 1; buf += num, ++l,
-			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l]) {
+			num = pixels[l + 1] - pixels[l]) {
 			for (int chan = 0; chan < 1; ++chan) {
 				int plane = planes_max - 1 - (layers + 1 - l);
 				if (plane < 0 || plane >= planes[chan])
 					continue;
-				if (encode(rle, buf + chan * pixels, num, plane))
+				if (encode_plane(rle, buf + chan * total, num, plane))
 					goto end;
 			}
 		}
-		for (int l = 0, *buf = buffer + pixels_root,
-			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l];
+		for (int l = 0, *buf = buffer + pixels[0],
+			num = pixels[l + 1] - pixels[l];
 			l < levels && l <= layers; buf += num, ++l,
-			num = widths[l + 1] * heights[l + 1] - widths[l] * heights[l]) {
+			num = pixels[l + 1] - pixels[l]) {
 			for (int chan = 1; chan < channels; ++chan) {
 				int plane = planes_max - 1 - (layers - l);
 				if (plane < 0 || plane >= planes[chan])
 					continue;
-				if (encode(rle, buf + chan * pixels, num, plane))
+				if (encode_plane(rle, buf + chan * total, num, plane))
 					goto end;
 			}
 		}
