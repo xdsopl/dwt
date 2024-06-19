@@ -36,4 +36,6 @@ by Solomon W. Golomb - 1966
 by M. Antonini, M. Barlaud, P. Mathieu and I. Daubechies - 1992
 * Factoring wavelet transforms into lifting steps  
 by Ingrid Daubechies and Wim Sweldens - 1996
+* Wavelet transforms that map integers to integers  
+by A. R. Calderbank, I. Daubechies, W. Sweldens, and B.-L. Yeo - 1996
 
