@@ -10,19 +10,19 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 struct vli_reader {
 	struct bits_reader *bits;
-	int order;
+	int k;
 };
 
 struct vli_writer {
 	struct bits_writer *bits;
-	int order;
+	int k;
 };
 
 struct vli_reader *vli_reader(struct bits_reader *bits)
 {
 	struct vli_reader *vli = malloc(sizeof(struct vli_reader));
 	vli->bits = bits;
-	vli->order = 0;
+	vli->k = 3;
 	return vli;
 }
 
@@ -30,7 +30,7 @@ struct vli_writer *vli_writer(struct bits_writer *bits)
 {
 	struct vli_writer *vli = malloc(sizeof(struct vli_writer));
 	vli->bits = bits;
-	vli->order = 0;
+	vli->k = 3;
 	return vli;
 }
 
@@ -64,39 +64,26 @@ int vli_read_bits(struct vli_reader *vli, int *b, int n)
 	return read_bits(vli->bits, b, n);
 }
 
-int put_vli(struct vli_writer *vli, int val)
-{
-	int ret;
-	while (val >= 1 << vli->order) {
+int put_vli(struct vli_writer *vli, int x) {
+	int k = vli->k, ret;
+	for (int q = x >> k; q; --q)
 		if ((ret = put_bit(vli->bits, 0)))
 			return ret;
-		val -= 1 << vli->order;
-		vli->order += 1;
-	}
 	if ((ret = put_bit(vli->bits, 1)))
 		return ret;
-	if ((ret = write_bits(vli->bits, val, vli->order)))
+	if ((ret = write_bits(vli->bits, x & ((1 << k) - 1), k)))
 		return ret;
-	vli->order -= 2;
-	if (vli->order < 0)
-		vli->order = 0;
 	return 0;
 }
 
-int get_vli(struct vli_reader *vli)
-{
-	int val, sum = 0, ret;
-	while ((ret = get_bit(vli->bits)) == 0) {
-		sum += 1 << vli->order;
-		vli->order += 1;
-	}
+int get_vli(struct vli_reader *vli) {
+	int k = vli->k, q = 0, r, ret;
+	while ((ret = get_bit(vli->bits)) == 0)
+		++q;
 	if (ret < 0)
 		return ret;
-	if ((ret = read_bits(vli->bits, &val, vli->order)))
+	if ((ret = read_bits(vli->bits, &r, k)))
 		return ret;
-	vli->order -= 2;
-	if (vli->order < 0)
-		vli->order = 0;
-	return val + sum;
+	return (q << k) | r;
 }
 
