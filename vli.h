@@ -10,19 +10,19 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 
 struct vli_reader {
 	struct bits_reader *bits;
-	int k;
+	int run;
 };
 
 struct vli_writer {
 	struct bits_writer *bits;
-	int k;
+	int run;
 };
 
 struct vli_reader *vli_reader(struct bits_reader *bits)
 {
 	struct vli_reader *vli = malloc(sizeof(struct vli_reader));
 	vli->bits = bits;
-	vli->k = 3;
+	vli->run = 100;
 	return vli;
 }
 
@@ -30,7 +30,7 @@ struct vli_writer *vli_writer(struct bits_writer *bits)
 {
 	struct vli_writer *vli = malloc(sizeof(struct vli_writer));
 	vli->bits = bits;
-	vli->k = 3;
+	vli->run = 100;
 	return vli;
 }
 
@@ -65,8 +65,12 @@ int vli_read_bits(struct vli_reader *vli, int *b, int n)
 }
 
 int put_vli(struct vli_writer *vli, int x) {
-	int k = vli->k, ret;
-	for (int q = x >> k; q; --q)
+	int k = vli->run / 32, q = x >> k, ret;
+	if (q)
+		vli->run += 1;
+	else if (vli->run > 0)
+		vli->run -= 1;
+	while (q--)
 		if ((ret = put_bit(vli->bits, 0)))
 			return ret;
 	if ((ret = put_bit(vli->bits, 1)))
@@ -77,11 +81,15 @@ int put_vli(struct vli_writer *vli, int x) {
 }
 
 int get_vli(struct vli_reader *vli) {
-	int k = vli->k, q = 0, r, ret;
+	int k = vli->run / 32, q = 0, r, ret;
 	while ((ret = get_bit(vli->bits)) == 0)
 		++q;
 	if (ret < 0)
 		return ret;
+	if (q)
+		vli->run += 1;
+	else if (vli->run > 0)
+		vli->run -= 1;
 	if ((ret = read_bits(vli->bits, &r, k)))
 		return ret;
 	return (q << k) | r;
