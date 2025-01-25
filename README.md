@@ -30,8 +30,8 @@ Allocate a maximum of ```65536``` bytes of space for compression. If necessary, 
 
 ### References
 
-* Run-length encodings  
-by Solomon W. Golomb - 1966
+* Arithmetic Coding for Data Compression  
+by Ian H. Witten, Radford M. Neal, and John G. Cleary - 1987
 * Image coding using wavelet transform  
 by M. Antonini, M. Barlaud, P. Mathieu and I. Daubechies - 1992
 * Factoring wavelet transforms into lifting steps  
