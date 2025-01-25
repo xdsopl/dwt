@@ -17,6 +17,8 @@ static const int ac_last_quarter = ac_first_quarter | ac_first_half;
 
 struct ac_reader {
 	struct bits_reader *bits;
+	int past[3];
+	int freq[3];
 	int count;
 	int value;
 	int lower;
@@ -25,6 +27,8 @@ struct ac_reader {
 
 struct ac_writer {
 	struct bits_writer *bits;
+	int past[3];
+	int freq[3];
 	int count;
 	int lower;
 	int upper;
@@ -52,6 +56,10 @@ struct ac_reader *ac_reader(struct bits_reader *bits)
 {
 	struct ac_reader *ac = malloc(sizeof(struct ac_reader));
 	ac->bits = bits;
+	for (int i = 0; i < 3; ++i)
+		ac->past[i] = 0x55555555;
+	for (int i = 0; i < 3; ++i)
+		ac->freq[i] = 16;
 	ac->count = 0;
 	ac->value = 0;
 	ac->lower = 0;
@@ -67,6 +75,10 @@ struct ac_writer *ac_writer(struct bits_writer *bits)
 {
 	struct ac_writer *ac = malloc(sizeof(struct ac_writer));
 	ac->bits = bits;
+	for (int i = 0; i < 3; ++i)
+		ac->past[i] = 0x55555555;
+	for (int i = 0; i < 3; ++i)
+		ac->freq[i] = 16;
 	ac->count = 0;
 	ac->lower = 0;
 	ac->upper = ac_max_value;
@@ -203,36 +215,36 @@ int ac_read_bits(struct ac_reader *ac, int *bits, int num)
 	return 0;
 }
 
-int ac_freq32(int bit, int ctx)
+void ac_update_freq32(int *past, int *freq, int bit)
 {
-	static int past[3] = { 0x55555555, 0x55555555, 0x55555555};
-	static int freq[3] = { 16, 16, 16 };
 	if (!bit)
-		++freq[ctx];
-	if (past[ctx] & (1 << 31))
-		--freq[ctx];
-	past[ctx] <<= 1;
-	past[ctx] |= !bit;
-	return freq[ctx] < 1 ? 1 : freq[ctx] > 31 ? 31 : freq[ctx];
+		*freq += 1;
+	if (*past & (1 << 31))
+		*freq -= 1;
+	*past <<= 1;
+	*past |= !bit;
+}
+
+int ac_clamp(int x, int a, int b)
+{
+	return x < a ? a : x > b ? b : x;
 }
 
 int put_ac(struct ac_writer *ac, int bit, int ctx)
 {
-	static int freq[3] = { 16, 16, 16 };
-	int ret = ac_encode(ac, bit, freq[ctx]);
+	int ret = ac_encode(ac, bit, ac_clamp(ac->freq[ctx], 1, ac_factor - 1));
 	if (ret)
 		return ret;
-	freq[ctx] = ac_freq32(bit, ctx);
+	ac_update_freq32(ac->past + ctx, ac->freq + ctx, bit);
 	return 0;
 }
 
 int get_ac(struct ac_reader *ac, int ctx)
 {
-	static int freq[3] = { 16, 16, 16 };
-	int bit = ac_decode(ac, freq[ctx]);
+	int bit = ac_decode(ac, ac_clamp(ac->freq[ctx], 1, ac_factor - 1));
 	if (bit < 0)
 		return bit;
-	freq[ctx] = ac_freq32(bit, ctx);
+	ac_update_freq32(ac->past + ctx, ac->freq + ctx, bit);
 	return bit;
 }
 
