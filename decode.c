@@ -8,8 +8,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "cdf53.h"
 #include "utils.h"
 #include "pnm.h"
-#include "rle.h"
-#include "vli.h"
+#include "ac.h"
 #include "bits.h"
 #include "bytes.h"
 
@@ -64,7 +63,7 @@ void reconstruction(int *output, int **input, int *missing, int *widths, int *he
 	}
 }
 
-int decode_plane(struct rle_reader *rle, int *val, int num, int plane)
+int decode_plane(struct ac_reader *ac, int *val, int num, int plane)
 {
 	int int_bits = sizeof(int) * 8;
 	int sgn_pos = int_bits - 1;
@@ -74,12 +73,12 @@ int decode_plane(struct rle_reader *rle, int *val, int num, int plane)
 	int ref_mask = 1 << ref_pos;
 	for (int i = 0; i < num; ++i) {
 		if (!(val[i] & ref_mask)) {
-			int bit = get_rle(rle);
+			int bit = get_ac(ac);
 			if (bit < 0)
 				return bit;
 			val[i] |= bit << plane;
 			if (bit) {
-				int sgn = rle_get_bit(rle);
+				int sgn = ac_get_bit(ac);
 				if (sgn < 0)
 					return sgn;
 				val[i] |= (sgn << sgn_pos) | sig_mask;
@@ -88,7 +87,7 @@ int decode_plane(struct rle_reader *rle, int *val, int num, int plane)
 	}
 	for (int i = 0; i < num; ++i) {
 		if (val[i] & ref_mask) {
-			int bit = rle_get_bit(rle);
+			int bit = ac_get_bit(ac);
 			if (bit < 0)
 				return bit;
 			val[i] |= bit << plane;
@@ -116,16 +115,16 @@ void process(int *buf, int num)
 	}
 }
 
-int decode_root(struct vli_reader *vli, int *val, int num)
+int decode_root(struct ac_reader *ac, int *val, int num)
 {
-	int cnt = get_vli(vli);
-	if (cnt < 0)
-		return cnt;
+	int cnt;
+	if (ac_read_bits(ac, &cnt, 4))
+		return -1;
 	for (int i = 0; cnt && i < num; ++i) {
-		int ret = vli_read_bits(vli, val + i, cnt);
+		int ret = ac_read_bits(ac, val + i, cnt);
 		if (ret)
 			return ret;
-		if (val[i] && (ret = vli_get_bit(vli)))
+		if (val[i] && (ret = ac_get_bit(ac)))
 			val[i] = -val[i];
 		if (ret < 0)
 			return ret;
@@ -158,7 +157,7 @@ int main(int argc, char **argv)
 	if (width < min_len || height < min_len)
 		return 1;
 	struct bits_reader *bits = bits_reader(bytes);
-	struct vli_reader *vli = vli_reader(bits);
+	struct ac_reader *ac = ac_reader(bits);
 	int lengths[16], pixels[16], widths[16], heights[16];
 	int levels = compute_lengths(lengths, pixels, widths, heights, width, height, min_len);
 	int levels_max = levels;
@@ -178,11 +177,11 @@ int main(int argc, char **argv)
 		for (int i = 0; i < total; ++i)
 			buffers[chan][i] = 0;
 	for (int chan = 0; chan < channels; ++chan)
-		if (decode_root(vli, buffers[chan], pixels[0]))
+		if (decode_root(ac, buffers[chan], pixels[0]))
 			return 1;
 	int planes[channels];
 	for (int chan = 0; chan < channels; ++chan)
-		if ((planes[chan] = get_vli(vli)) < 0)
+		if (ac_read_bits(ac, planes + chan, 4))
 			return 1;
 	int planes_max = 0;
 	for (int chan = 0; chan < channels; ++chan)
@@ -195,13 +194,12 @@ int main(int argc, char **argv)
 		for (int i = 0; i < levels; ++i)
 			missing[chan * 16 + i] = planes[chan];
 	int level = -1;
-	struct rle_reader *rle = rle_reader(vli);
 	if (!levels_max)
 		goto end;
 	if (planes_max == planes[0]) {
 		int num = pixels[1] - pixels[0];
 		level = 0;
-		if (decode_plane(rle, buffers[0] + pixels[0], num, planes[0] - 1))
+		if (decode_plane(ac, buffers[0] + pixels[0], num, planes[0] - 1))
 			goto end;
 		--missing[0];
 	}
@@ -218,7 +216,7 @@ int main(int argc, char **argv)
 					continue;
 				if (level < l)
 					level = l;
-				if (decode_plane(rle, buffers[chan] + off, num, plane))
+				if (decode_plane(ac, buffers[chan] + off, num, plane))
 					goto end;
 				--missing[chan * 16 + l];
 			}
@@ -235,15 +233,14 @@ int main(int argc, char **argv)
 					continue;
 				if (level < l)
 					level = l;
-				if (decode_plane(rle, buffers[chan] + off, num, plane))
+				if (decode_plane(ac, buffers[chan] + off, num, plane))
 					goto end;
 				--missing[chan * 16 + l];
 			}
 		}
 	}
 end:
-	delete_rle_reader(rle);
-	delete_vli_reader(vli);
+	delete_ac_reader(ac);
 	close_bits_reader(bits);
 	close_bytes_reader(bytes);
 	for (int chan = 0; chan < channels; ++chan)
