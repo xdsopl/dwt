@@ -8,8 +8,7 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 #include "cdf53.h"
 #include "utils.h"
 #include "pnm.h"
-#include "rle.h"
-#include "vli.h"
+#include "ac.h"
 #include "bits.h"
 #include "bytes.h"
 
@@ -57,7 +56,7 @@ void linearization(int *output, int *input, int *widths, int *heights, int *leng
 	}
 }
 
-int encode_plane(struct rle_writer *rle, int *val, int num, int plane)
+int encode_plane(struct ac_writer *ac, int *val, int num, int plane)
 {
 	int bit_mask = 1 << plane;
 	int int_bits = sizeof(int) * 8;
@@ -70,11 +69,11 @@ int encode_plane(struct rle_writer *rle, int *val, int num, int plane)
 	for (int i = 0; i < num; ++i) {
 		if (!(val[i] & ref_mask)) {
 			int bit = val[i] & bit_mask;
-			int ret = put_rle(rle, bit, 1);
+			int ret = put_ac(ac, bit);
 			if (ret)
 				return ret;
 			if (bit) {
-				int ret = rle_put_bit(rle, val[i] & sgn_mask, 1);
+				int ret = ac_put_bit(ac, val[i] & sgn_mask);
 				if (ret)
 					return ret;
 				val[i] |= sig_mask;
@@ -84,14 +83,14 @@ int encode_plane(struct rle_writer *rle, int *val, int num, int plane)
 	for (int i = 0; i < num; ++i) {
 		if (val[i] & ref_mask) {
 			int bit = val[i] & bit_mask;
-			int ret = rle_put_bit(rle, bit, 1);
+			int ret = ac_put_bit(ac, bit);
 			if (ret)
 				return ret;
 		} else if (val[i] & sig_mask) {
 			val[i] ^= sig_mask | ref_mask;
 		} else if (plane == 0) {
 			int bit = val[i] & sgn_mask;
-			int ret = rle_put_bit(rle, bit, 1);
+			int ret = ac_put_bit(ac, bit);
 			if (ret)
 				return ret;
 		}
@@ -99,15 +98,15 @@ int encode_plane(struct rle_writer *rle, int *val, int num, int plane)
 	return 0;
 }
 
-void encode_root(struct vli_writer *vli, int *val, int num)
+void encode_root(struct ac_writer *ac, int *val, int num)
 {
 	int max = 0;
 	for (int i = 0; i < num; ++i)
 		max |= (val[i] << 1) ^ (val[i] >> 31);
 	int cnt = 1 + ilog2(max);
-	put_vli(vli, cnt, 0);
+	ac_write_bits(ac, cnt, 4);
 	for (int i = 0; cnt && i < num; ++i)
-		vli_write_bits(vli, (val[i] << 1) ^ (val[i] >> 31), cnt);
+		ac_write_bits(ac, (val[i] << 1) ^ (val[i] >> 31), cnt);
 }
 
 int process(int *val, int num)
@@ -165,25 +164,24 @@ int main(int argc, char **argv)
 	write_bytes(bytes, width - 1, 2);
 	write_bytes(bytes, height - 1, 2);
 	struct bits_writer *bits = bits_writer(bytes);
-	struct vli_writer *vli = vli_writer(bits);
+	struct ac_writer *ac = ac_writer(bits);
 	int meta_data = bits_count(bits);
 	fprintf(stderr, "%d bits for meta data\n", meta_data);
 	for (int chan = 0; chan < channels; ++chan)
-		encode_root(vli, buffer + chan * total, pixels[0]);
+		encode_root(ac, buffer + chan * total, pixels[0]);
 	int root_image = bits_count(bits);
 	fprintf(stderr, "%d bits for root image\n", root_image - meta_data);
 	for (int chan = 0; chan < channels; ++chan)
-		put_vli(vli, planes[chan], 0);
+		ac_write_bits(ac, planes[chan], 4);
 	int planes_max = 0;
 	for (int chan = 0; chan < channels; ++chan)
 		if (planes_max < planes[chan])
 			planes_max = planes[chan];
 	int maximum = levels > planes_max ? levels : planes_max;
 	int layers_max = 2 * maximum - 1;
-	struct rle_writer *rle = rle_writer(vli);
 	if (planes_max == planes[0]) {
 		int num = pixels[1] - pixels[0];
-		if (encode_plane(rle, buffer + pixels[0], num, planes[0] - 1))
+		if (encode_plane(ac, buffer + pixels[0], num, planes[0] - 1))
 			goto end;
 	}
 	for (int layers = 0; layers < layers_max; ++layers) {
@@ -195,7 +193,7 @@ int main(int argc, char **argv)
 				int plane = planes_max - 1 - (layers + 1 - l);
 				if (plane < 0 || plane >= planes[chan])
 					continue;
-				if (encode_plane(rle, buf + chan * total, num, plane))
+				if (encode_plane(ac, buf + chan * total, num, plane))
 					goto end;
 			}
 		}
@@ -207,15 +205,13 @@ int main(int argc, char **argv)
 				int plane = planes_max - 1 - (layers - l);
 				if (plane < 0 || plane >= planes[chan])
 					continue;
-				if (encode_plane(rle, buf + chan * total, num, plane))
+				if (encode_plane(ac, buf + chan * total, num, plane))
 					goto end;
 			}
 		}
 	}
-	rle_flush(rle, 1);
 end:
-	delete_rle_writer(rle);
-	delete_vli_writer(vli);
+	delete_ac_writer(ac);
 	free(buffer);
 	int cnt = bits_count(bits);
 	close_bits_writer(bits);
