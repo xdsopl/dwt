@@ -8,7 +8,7 @@ Copyright 2025 Ahmet Inan <xdsopl@gmail.com>
 
 #include "bits.h"
 
-static const int ac_factor = 32;
+static const int ac_factor = 64;
 static const int ac_code_bits = 16;
 static const int ac_max_value = (1 << ac_code_bits) - 1;
 static const int ac_first_half = 1 << (ac_code_bits - 1);
@@ -17,7 +17,7 @@ static const int ac_last_quarter = ac_first_quarter | ac_first_half;
 
 struct ac_reader {
 	struct bits_reader *bits;
-	int past[3];
+	long past[3];
 	int freq[3];
 	int count;
 	int value;
@@ -27,7 +27,7 @@ struct ac_reader {
 
 struct ac_writer {
 	struct bits_writer *bits;
-	int past[3];
+	long past[3];
 	int freq[3];
 	int count;
 	int lower;
@@ -57,9 +57,9 @@ struct ac_reader *ac_reader(struct bits_reader *bits)
 	struct ac_reader *ac = malloc(sizeof(struct ac_reader));
 	ac->bits = bits;
 	for (int i = 0; i < 3; ++i)
-		ac->past[i] = 0x55555555;
+		ac->past[i] = 0x5555555555555555L;
 	for (int i = 0; i < 3; ++i)
-		ac->freq[i] = 16;
+		ac->freq[i] = 32;
 	ac->count = 0;
 	ac->value = 0;
 	ac->lower = 0;
@@ -76,9 +76,9 @@ struct ac_writer *ac_writer(struct bits_writer *bits)
 	struct ac_writer *ac = malloc(sizeof(struct ac_writer));
 	ac->bits = bits;
 	for (int i = 0; i < 3; ++i)
-		ac->past[i] = 0x55555555;
+		ac->past[i] = 0x5555555555555555L;
 	for (int i = 0; i < 3; ++i)
-		ac->freq[i] = 16;
+		ac->freq[i] = 32;
 	ac->count = 0;
 	ac->lower = 0;
 	ac->upper = ac_max_value;
@@ -215,11 +215,11 @@ int ac_read_bits(struct ac_reader *ac, int *bits, int num)
 	return 0;
 }
 
-void ac_update_freq32(int *past, int *freq, int bit)
+void ac_update_freq64(long *past, int *freq, int bit)
 {
 	if (!bit)
 		*freq += 1;
-	if (*past & (1 << 31))
+	if (*past & (1L << 63))
 		*freq -= 1;
 	*past <<= 1;
 	*past |= !bit;
@@ -235,7 +235,7 @@ int put_ac(struct ac_writer *ac, int bit, int ctx)
 	int ret = ac_encode(ac, bit, ac_clamp(ac->freq[ctx], 1, ac_factor - 1));
 	if (ret)
 		return ret;
-	ac_update_freq32(ac->past + ctx, ac->freq + ctx, bit);
+	ac_update_freq64(ac->past + ctx, ac->freq + ctx, bit);
 	return 0;
 }
 
@@ -244,7 +244,7 @@ int get_ac(struct ac_reader *ac, int ctx)
 	int bit = ac_decode(ac, ac_clamp(ac->freq[ctx], 1, ac_factor - 1));
 	if (bit < 0)
 		return bit;
-	ac_update_freq32(ac->past + ctx, ac->freq + ctx, bit);
+	ac_update_freq64(ac->past + ctx, ac->freq + ctx, bit);
 	return bit;
 }
 
