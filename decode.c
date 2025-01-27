@@ -115,16 +115,16 @@ void process(int *val, int num)
 	}
 }
 
-int decode_root(struct ac_reader *ac, int *val, int num)
+int decode_root(struct bits_reader *bits, int *val, int num)
 {
 	int cnt;
-	if (ac_read_bits(ac, &cnt, 4))
+	if (read_bits(bits, &cnt, 4))
 		return -1;
 	for (int i = 0; cnt && i < num; ++i) {
-		int ret = ac_read_bits(ac, val + i, cnt);
+		int ret = read_bits(bits, val + i, cnt);
 		if (ret)
 			return ret;
-		if (val[i] && (ret = ac_get_bit(ac)))
+		if (val[i] && (ret = get_bit(bits)))
 			val[i] = -val[i];
 		if (ret < 0)
 			return ret;
@@ -157,7 +157,6 @@ int main(int argc, char **argv)
 	if (width < min_len || height < min_len)
 		return 1;
 	struct bits_reader *bits = bits_reader(bytes);
-	struct ac_reader *ac = ac_reader(bits);
 	int lengths[16], pixels[16], widths[16], heights[16];
 	int levels = compute_lengths(lengths, pixels, widths, heights, width, height, min_len);
 	int total = width * height;
@@ -166,11 +165,11 @@ int main(int argc, char **argv)
 	for (int i = 0; i < channels * total; ++i)
 		buffer[i] = 0;
 	for (int chan = 0; chan < channels; ++chan)
-		if (decode_root(ac, buffer + chan * total, pixels[0]))
+		if (decode_root(bits, buffer + chan * total, pixels[0]))
 			return 1;
 	int planes[channels];
 	for (int chan = 0; chan < channels; ++chan)
-		if (ac_read_bits(ac, planes + chan, 4))
+		if (read_bits(bits, planes + chan, 4))
 			return 1;
 	int planes_max = 0;
 	for (int chan = 0; chan < channels; ++chan)
@@ -182,6 +181,7 @@ int main(int argc, char **argv)
 	for (int chan = 0; chan < channels; ++chan)
 		for (int i = 0; i < levels; ++i)
 			missing[chan * levels + i] = planes[chan];
+	struct ac_reader *ac = ac_reader(bits);
 	if (planes_max == planes[0]) {
 		int num = pixels[1] - pixels[0];
 		if (decode_plane(ac, buffer + pixels[0], num, planes[0] - 1))
