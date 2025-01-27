@@ -150,7 +150,7 @@ int ac_decode(struct ac_reader *ac, int freq)
 {
 	int range = ac->upper - ac->lower + 1;
 	int point = range * freq;
-	int bit = (ac->value - ac->lower + 1) * ac_factor >= point + 1;
+	int bit = point < (ac->value - ac->lower + 1) * ac_factor;
 	int offset = point / ac_factor;
 	if (bit)
 		ac->lower += offset;
