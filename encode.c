@@ -187,29 +187,12 @@ int main(int argc, char **argv)
 	int maximum = levels > planes_max ? levels : planes_max;
 	int layers_max = 2 * maximum - 1;
 	struct rle_writer *rle = rle_writer(vli);
-	if (planes_max == planes[0]) {
-		int num = pixels[1] - pixels[0];
-		if (encode_plane(rle, buffer + pixels[0], num, planes[0] - 1))
-			goto end;
-	}
 	for (int layers = 0; layers < layers_max; ++layers) {
-		for (int l = 0, *buf = buffer + pixels[0],
-			num = pixels[l + 1] - pixels[l];
-			l < levels && l <= layers + 1; buf += num, ++l,
-			num = pixels[l + 1] - pixels[l]) {
-			for (int chan = 0; chan < 1; ++chan) {
-				int plane = planes_max - 1 - (layers + 1 - l);
-				if (plane < 0 || plane >= planes[chan])
-					continue;
-				if (encode_plane(rle, buf + chan * total, num, plane))
-					goto end;
-			}
-		}
 		for (int l = 0, *buf = buffer + pixels[0],
 			num = pixels[l + 1] - pixels[l];
 			l < levels && l <= layers; buf += num, ++l,
 			num = pixels[l + 1] - pixels[l]) {
-			for (int chan = 1; chan < channels; ++chan) {
+			for (int chan = 0; chan < channels; ++chan) {
 				int plane = planes_max - 1 - (layers - l);
 				if (plane < 0 || plane >= planes[chan])
 					continue;

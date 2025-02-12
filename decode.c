@@ -186,34 +186,12 @@ int main(int argc, char **argv)
 			missing[chan * 16 + i] = planes[chan];
 	int level = -1;
 	struct rle_reader *rle = rle_reader(vli);
-	if (planes_max == planes[0]) {
-		int num = pixels[1] - pixels[0];
-		level = 0;
-		if (decode_plane(rle, buffer + pixels[0], num, planes[0] - 1))
-			goto end;
-		--missing[0];
-	}
 	for (int layers = 0; layers < layers_max; ++layers) {
-		for (int l = 0, *buf = buffer + pixels[0],
-			num = pixels[l + 1] - pixels[l];
-			l < levels && l <= layers + 1; buf += num, ++l,
-			num = pixels[l + 1] - pixels[l]) {
-			for (int chan = 0; chan < 1; ++chan) {
-				int plane = planes_max - 1 - (layers + 1 - l);
-				if (plane < 0 || plane >= planes[chan])
-					continue;
-				if (level < l)
-					level = l;
-				if (decode_plane(rle, buf + chan * total, num, plane))
-					goto end;
-				--missing[chan * 16 + l];
-			}
-		}
 		for (int l = 0, *buf = buffer + pixels[0],
 			num = pixels[l + 1] - pixels[l];
 			l < levels && l <= layers; buf += num, ++l,
 			num = pixels[l + 1] - pixels[l]) {
-			for (int chan = 1; chan < channels; ++chan) {
+			for (int chan = 0; chan < channels; ++chan) {
 				int plane = planes_max - 1 - (layers - l);
 				if (plane < 0 || plane >= planes[chan])
 					continue;
