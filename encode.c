@@ -74,7 +74,7 @@ int encode_plane(struct rle_writer *rle, int *val, int num, int plane)
 			if (ret)
 				return ret;
 			if (bit) {
-				int ret = rle_put_bit(rle, val[i] & sgn_mask);
+				int ret = put_rle(rle, val[i] & sgn_mask);
 				if (ret)
 					return ret;
 				val[i] |= sig_mask;
@@ -84,7 +84,7 @@ int encode_plane(struct rle_writer *rle, int *val, int num, int plane)
 	for (int i = 0; i < num; ++i) {
 		if (val[i] & ref_mask) {
 			int bit = val[i] & bit_mask;
-			int ret = rle_put_bit(rle, bit);
+			int ret = put_rle(rle, bit);
 			if (ret)
 				return ret;
 		} else if (val[i] & sig_mask) {

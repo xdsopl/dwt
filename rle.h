@@ -11,11 +11,13 @@ Copyright 2021 Ahmet Inan <xdsopl@gmail.com>
 struct rle_reader {
 	struct vli_reader *vli;
 	int cnt;
+	int val;
 };
 
 struct rle_writer {
 	struct vli_writer *vli;
 	int cnt;
+	int val;
 };
 
 struct rle_reader *rle_reader(struct vli_reader *vli)
@@ -23,6 +25,7 @@ struct rle_reader *rle_reader(struct vli_reader *vli)
 	struct rle_reader *rle = malloc(sizeof(struct rle_reader));
 	rle->vli = vli;
 	rle->cnt = 0;
+	rle->val = -1;
 	return rle;
 }
 
@@ -31,34 +34,41 @@ struct rle_writer *rle_writer(struct vli_writer *vli)
 	struct rle_writer *rle = malloc(sizeof(struct rle_writer));
 	rle->vli = vli;
 	rle->cnt = 0;
+	rle->val = -1;
 	return rle;
 }
 
 int rle_flush(struct rle_writer *rle)
 {
-	return rle->cnt = put_vli(rle->vli, rle->cnt);
+	return rle->cnt = put_vli(rle->vli, rle->cnt, rle->val);
 }
 
 void delete_rle_reader(struct rle_reader *rle)
 {
 	if (rle->cnt > 1)
-		fprintf(stderr, "%d zeros not read.\n", rle->cnt);
+		fprintf(stderr, "%d values not read.\n", rle->cnt);
 	free(rle);
 }
 
 void delete_rle_writer(struct rle_writer *rle)
 {
 	if (rle->cnt > 0)
-		fprintf(stderr, "forgot to flush counter for %d zeros.\n", rle->cnt);
+		fprintf(stderr, "forgot to flush counter for %d values.\n", rle->cnt);
 	free(rle);
 }
 
-int put_rle(struct rle_writer *rle, int b)
+int put_rle(struct rle_writer *rle, int val)
 {
 	if (rle->cnt < 0)
 		return rle->cnt;
-	if (b)
-		return rle->cnt = put_vli(rle->vli, rle->cnt);
+	val = !!val;
+	if (rle->val < 0)
+		return rle->cnt = vli_put_bit(rle->vli, !(rle->val = val));
+	if (rle->val != val) {
+		rle->cnt = put_vli(rle->vli, rle->cnt, rle->val);
+		rle->val = val;
+		return rle->cnt;
+	}
 	rle->cnt++;
 	return 0;
 }
@@ -67,38 +77,12 @@ int get_rle(struct rle_reader *rle)
 {
 	if (rle->cnt < 0)
 		return rle->cnt;
-	if (!rle->cnt) {
-		rle->cnt = get_vli(rle->vli);
-		if (rle->cnt < 0)
-			return rle->cnt;
-		return !rle->cnt;
-	}
-	return rle->cnt-- == 1;
-}
-
-int rle_put_bit(struct rle_writer *rle, int bit)
-{
-	if (rle->cnt < 0)
+	if ((rle->val < 0 && (rle->val = vli_get_bit(rle->vli)) < 0))
+		return rle->val;
+	if (rle->cnt)
+		rle->cnt--;
+	else if ((rle->cnt = get_vli(rle->vli, rle->val ^= 1)) < 0)
 		return rle->cnt;
-	if (rle->cnt > 0) {
-		int ret = put_rle(rle, 1);
-		if (ret)
-			return ret;
-	}
-	return vli_put_bit(rle->vli, bit);
-}
-
-int rle_get_bit(struct rle_reader *rle)
-{
-	if (rle->cnt < 0)
-		return rle->cnt;
-	if (rle->cnt > 0) {
-		int ret = get_rle(rle);
-		if (ret < 0)
-			return ret;
-		if (ret != 1)
-			return -1;
-	}
-	return vli_get_bit(rle->vli);
+	return rle->val;
 }
 

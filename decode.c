@@ -80,7 +80,7 @@ int decode_plane(struct rle_reader *rle, int *val, int num, int plane)
 				return bit;
 			val[i] |= bit << plane;
 			if (bit) {
-				int sgn = rle_get_bit(rle);
+				int sgn = get_rle(rle);
 				if (sgn < 0)
 					return sgn;
 				val[i] |= (sgn << sgn_pos) | sig_mask;
@@ -89,7 +89,7 @@ int decode_plane(struct rle_reader *rle, int *val, int num, int plane)
 	}
 	for (int i = 0; i < num; ++i) {
 		if (val[i] & ref_mask) {
-			int bit = rle_get_bit(rle);
+			int bit = get_rle(rle);
 			if (bit < 0)
 				return bit;
 			val[i] |= bit << plane;
