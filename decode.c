@@ -75,12 +75,12 @@ int decode_plane(struct rle_reader *rle, int *val, int num, int plane)
 	int ref_mask = 1 << ref_pos;
 	for (int i = 0; i < num; ++i) {
 		if (!(val[i] & ref_mask)) {
-			int bit = get_rle(rle);
+			int bit = get_rle(rle, 1);
 			if (bit < 0)
 				return bit;
 			val[i] |= bit << plane;
 			if (bit) {
-				int sgn = rle_get_bit(rle);
+				int sgn = rle_get_bit(rle, 1);
 				if (sgn < 0)
 					return sgn;
 				val[i] |= (sgn << sgn_pos) | sig_mask;
@@ -89,7 +89,7 @@ int decode_plane(struct rle_reader *rle, int *val, int num, int plane)
 	}
 	for (int i = 0; i < num; ++i) {
 		if (val[i] & ref_mask) {
-			int bit = rle_get_bit(rle);
+			int bit = rle_get_bit(rle, 1);
 			if (bit < 0)
 				return bit;
 			val[i] |= bit << plane;
@@ -119,7 +119,7 @@ void process(int *dst, const int *src, int num)
 
 int decode_root(struct vli_reader *vli, int *val, int num)
 {
-	int cnt = get_vli(vli);
+	int cnt = get_vli(vli, 0);
 	if (cnt < 0)
 		return cnt;
 	for (int i = 0; cnt && i < num; ++i) {
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
 			return 1;
 	int planes[channels];
 	for (int chan = 0; chan < channels; ++chan)
-		if ((planes[chan] = get_vli(vli)) < 0)
+		if ((planes[chan] = get_vli(vli, 0)) < 0)
 			return 1;
 	int planes_max = 0;
 	for (int chan = 0; chan < channels; ++chan)

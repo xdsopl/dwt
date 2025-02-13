@@ -70,11 +70,11 @@ int encode_plane(struct rle_writer *rle, int *val, int num, int plane)
 	for (int i = 0; i < num; ++i) {
 		if (!(val[i] & ref_mask)) {
 			int bit = val[i] & bit_mask;
-			int ret = put_rle(rle, bit);
+			int ret = put_rle(rle, bit, 1);
 			if (ret)
 				return ret;
 			if (bit) {
-				int ret = rle_put_bit(rle, val[i] & sgn_mask);
+				int ret = rle_put_bit(rle, val[i] & sgn_mask, 1);
 				if (ret)
 					return ret;
 				val[i] |= sig_mask;
@@ -84,7 +84,7 @@ int encode_plane(struct rle_writer *rle, int *val, int num, int plane)
 	for (int i = 0; i < num; ++i) {
 		if (val[i] & ref_mask) {
 			int bit = val[i] & bit_mask;
-			int ret = rle_put_bit(rle, bit);
+			int ret = rle_put_bit(rle, bit, 1);
 			if (ret)
 				return ret;
 		} else if (val[i] & sig_mask) {
@@ -101,7 +101,7 @@ void encode_root(struct vli_writer *vli, int *val, int num)
 		if (max < abs(val[i]))
 			max = abs(val[i]);
 	int cnt = 1 + ilog2(max);
-	put_vli(vli, cnt);
+	put_vli(vli, cnt, 0);
 	for (int i = 0; cnt && i < num; ++i) {
 		vli_write_bits(vli, abs(val[i]), cnt);
 		if (val[i])
@@ -179,7 +179,7 @@ int main(int argc, char **argv)
 	int root_image = bits_count(bits);
 	fprintf(stderr, "%d bits for root image\n", root_image - meta_data);
 	for (int chan = 0; chan < channels; ++chan)
-		put_vli(vli, planes[chan]);
+		put_vli(vli, planes[chan], 0);
 	int planes_max = 0;
 	for (int chan = 0; chan < channels; ++chan)
 		if (planes_max < planes[chan])
@@ -218,7 +218,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
-	rle_flush(rle);
+	rle_flush(rle, 1);
 end:
 	delete_rle_writer(rle);
 	delete_vli_writer(vli);
