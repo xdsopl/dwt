@@ -89,6 +89,11 @@ int encode_plane(struct rle_writer *rle, int *val, int num, int plane)
 				return ret;
 		} else if (val[i] & sig_mask) {
 			val[i] ^= sig_mask | ref_mask;
+		} else if (plane == 0) {
+			int bit = val[i] & sgn_mask;
+			int ret = rle_put_bit(rle, bit, 1);
+			if (ret)
+				return ret;
 		}
 	}
 	return 0;
@@ -110,18 +115,11 @@ int process(int *val, int num)
 	int max = 0;
 	int int_bits = sizeof(int) * 8;
 	int sgn_pos = int_bits - 1;
-	int sig_pos = int_bits - 2;
-	int ref_pos = int_bits - 3;
-	int sgn_mask = 1 << sgn_pos;
-	int sig_mask = 1 << sig_pos;
-	int ref_mask = 1 << ref_pos;
-	int mix_mask = sgn_mask | sig_mask | ref_mask;
 	for (int i = 0; i < num; ++i) {
-		int sgn = val[i] < 0;
-		int mag = abs(val[i]);
-		if (max < mag)
-			max = mag;
-		val[i] = (sgn << sgn_pos) | (mag & ~mix_mask);
+		int sgn = val[i] >> sgn_pos;
+		int uns = val[i] ^ sgn;
+		max |= uns;
+		val[i] = uns | (sgn << sgn_pos);
 	}
 	return 1 + ilog2(max);
 }

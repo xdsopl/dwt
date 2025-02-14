@@ -95,6 +95,11 @@ int decode_plane(struct rle_reader *rle, int *val, int num, int plane)
 			val[i] |= bit << plane;
 		} else if (val[i] & sig_mask) {
 			val[i] ^= sig_mask | ref_mask;
+		} else if (plane == 0) {
+			int bit = rle_get_bit(rle, 1);
+			if (bit < 0)
+				return bit;
+			val[i] |= bit << sgn_pos;
 		}
 	}
 	return 0;
@@ -109,11 +114,11 @@ void process(int *dst, const int *src, int num)
 	int sgn_mask = 1 << sgn_pos;
 	int sig_mask = 1 << sig_pos;
 	int ref_mask = 1 << ref_pos;
+	int mix_mask = sgn_mask | sig_mask | ref_mask;
 	for (int i = 0; i < num; ++i) {
-		int val = src[i] & ~(sig_mask | ref_mask);
-		if (val & sgn_mask)
-			val = -(val ^ sgn_mask);
-		dst[i] = val;
+		int sgn = src[i] >> sgn_pos;
+		int uns = src[i] & ~mix_mask;
+		dst[i] = uns ^ sgn;
 	}
 }
 
