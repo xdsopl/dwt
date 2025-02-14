@@ -95,7 +95,7 @@ int decode_plane(struct ac_reader *ac, int *val, int num, int plane)
 		} else if (val[i] & sig_mask) {
 			val[i] ^= sig_mask | ref_mask;
 		} else if (plane == 0) {
-			int bit = ac_get_bit(ac);
+			int bit = get_ac(ac, 2);
 			if (bit < 0)
 				return bit;
 			val[i] |= bit << sgn_pos;

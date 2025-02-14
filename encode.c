@@ -90,7 +90,7 @@ int encode_plane(struct ac_writer *ac, int *val, int num, int plane)
 			val[i] ^= sig_mask | ref_mask;
 		} else if (plane == 0) {
 			int bit = val[i] & sgn_mask;
-			int ret = ac_put_bit(ac, bit);
+			int ret = put_ac(ac, bit, 2);
 			if (ret)
 				return ret;
 		}
