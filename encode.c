@@ -98,15 +98,11 @@ void encode_root(struct vli_writer *vli, int *val, int num)
 {
 	int max = 0;
 	for (int i = 0; i < num; ++i)
-		if (max < abs(val[i]))
-			max = abs(val[i]);
+		max |= (val[i] << 1) ^ (val[i] >> 31);
 	int cnt = 1 + ilog2(max);
 	put_vli(vli, cnt, 0);
-	for (int i = 0; cnt && i < num; ++i) {
-		vli_write_bits(vli, abs(val[i]), cnt);
-		if (val[i])
-			vli_put_bit(vli, val[i] < 0);
-	}
+	for (int i = 0; cnt && i < num; ++i)
+		vli_write_bits(vli, (val[i] << 1) ^ (val[i] >> 31), cnt);
 }
 
 int process(int *val, int num)

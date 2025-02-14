@@ -126,10 +126,7 @@ int decode_root(struct vli_reader *vli, int *val, int num)
 		int ret = vli_read_bits(vli, val + i, cnt);
 		if (ret)
 			return ret;
-		if (val[i] && (ret = vli_get_bit(vli)))
-			val[i] = -val[i];
-		if (ret < 0)
-			return ret;
+		val[i] = (val[i] >> 1) ^ -(val[i] & 1);
 	}
 	return 0;
 }
