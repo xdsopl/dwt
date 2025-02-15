@@ -94,18 +94,18 @@ int encode_plane(struct rle_writer *rle, int *val, int num, int plane)
 	return 0;
 }
 
-void encode_root(struct vli_writer *vli, int *val, int num)
+void encode_root(struct bits_writer *bits, int *val, int num)
 {
 	int max = 0;
 	for (int i = 0; i < num; ++i)
 		if (max < abs(val[i]))
 			max = abs(val[i]);
 	int cnt = 1 + ilog2(max);
-	put_vli(vli, cnt);
+	write_bits(bits, cnt, 4);
 	for (int i = 0; cnt && i < num; ++i) {
-		vli_write_bits(vli, abs(val[i]), cnt);
+		write_bits(bits, abs(val[i]), cnt);
 		if (val[i])
-			vli_put_bit(vli, val[i] < 0);
+			put_bit(bits, val[i] < 0);
 	}
 }
 
@@ -171,21 +171,21 @@ int main(int argc, char **argv)
 	write_bytes(bytes, width - 1, 2);
 	write_bytes(bytes, height - 1, 2);
 	struct bits_writer *bits = bits_writer(bytes);
-	struct vli_writer *vli = vli_writer(bits);
 	int meta_data = bits_count(bits);
 	fprintf(stderr, "%d bits for meta data\n", meta_data);
 	for (int chan = 0; chan < channels; ++chan)
-		encode_root(vli, buffer + chan * total, pixels[0]);
+		encode_root(bits, buffer + chan * total, pixels[0]);
 	int root_image = bits_count(bits);
 	fprintf(stderr, "%d bits for root image\n", root_image - meta_data);
 	for (int chan = 0; chan < channels; ++chan)
-		put_vli(vli, planes[chan]);
+		write_bits(bits, planes[chan], 4);
 	int planes_max = 0;
 	for (int chan = 0; chan < channels; ++chan)
 		if (planes_max < planes[chan])
 			planes_max = planes[chan];
 	int maximum = levels > planes_max ? levels : planes_max;
 	int layers_max = 2 * maximum - 1;
+	struct vli_writer *vli = vli_writer(bits);
 	struct rle_writer *rle = rle_writer(vli);
 	if (planes_max == planes[0]) {
 		int num = pixels[1] - pixels[0];
