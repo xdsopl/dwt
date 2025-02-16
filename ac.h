@@ -58,9 +58,13 @@ struct ac_reader *ac_reader(struct bits_reader *bits)
 {
 	struct ac_reader *ac = malloc(sizeof(struct ac_reader));
 	ac->bits = bits;
-	for (int i = 0; i < 3 * ac_factor; ++i)
+	for (int i = 0; i < ac_factor - 1; ++i)
+		ac->past[i] = 1;
+	ac->past[ac_factor - 1] = 0;
+	ac->freq[0] = ac_factor - 1;
+	for (int i = ac_factor; i < 3 * ac_factor; ++i)
 		ac->past[i] = i & 1;
-	for (int i = 0; i < 3; ++i)
+	for (int i = 1; i < 3; ++i)
 		ac->freq[i] = ac_factor / 2;
 	ac->index = 0;
 	ac->count = 0;
@@ -78,9 +82,13 @@ struct ac_writer *ac_writer(struct bits_writer *bits)
 {
 	struct ac_writer *ac = malloc(sizeof(struct ac_writer));
 	ac->bits = bits;
-	for (int i = 0; i < 3 * ac_factor; ++i)
+	for (int i = 0; i < ac_factor - 1; ++i)
+		ac->past[i] = 1;
+	ac->past[ac_factor - 1] = 0;
+	ac->freq[0] = ac_factor - 1;
+	for (int i = ac_factor; i < 3 * ac_factor; ++i)
 		ac->past[i] = i & 1;
-	for (int i = 0; i < 3; ++i)
+	for (int i = 1; i < 3; ++i)
 		ac->freq[i] = ac_factor / 2;
 	ac->index = 0;
 	ac->count = 0;
