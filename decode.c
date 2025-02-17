@@ -161,6 +161,13 @@ int main(int argc, char **argv)
 	struct vli_reader *vli = vli_reader(bits);
 	int lengths[16], pixels[16], widths[16], heights[16];
 	int levels = compute_lengths(lengths, pixels, widths, heights, width, height, min_len);
+	if (argc >= 4) {
+		int pixels_max = atoi(argv[3]);
+		while (levels > 0 && pixels[levels] > pixels_max)
+			--levels;
+		width = widths[levels];
+		height = heights[levels];
+	}
 	int total = width * height;
 	int channels = color ? 3 : 1;
 	int *buffers[3];
@@ -188,7 +195,7 @@ int main(int argc, char **argv)
 			missing[chan * 16 + i] = planes[chan];
 	int level = -1;
 	struct rle_reader *rle = rle_reader(vli);
-	if (planes_max == planes[0]) {
+	if (planes_max == planes[0] && levels) {
 		int num = pixels[1] - pixels[0];
 		level = 0;
 		if (decode_plane(rle, buffers[0] + pixels[0], num, planes[0] - 1))
@@ -232,11 +239,6 @@ end:
 	delete_vli_reader(vli);
 	close_bits_reader(bits);
 	close_bytes_reader(bytes);
-	if (argc >= 4) {
-		int pixels_max = atoi(argv[3]);
-		while (level >= 0 && pixels[level+1] > pixels_max)
-			--level;
-	}
 	for (int chan = 0; chan < channels; ++chan)
 		process(buffers[chan] + pixels[0], pixels[level + 1] - pixels[0]);
 	levels = level + 1;
