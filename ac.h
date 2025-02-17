@@ -8,7 +8,7 @@ Copyright 2025 Ahmet Inan <xdsopl@gmail.com>
 
 #include "bits.h"
 
-static const int ac_factor = 256;
+#define AC_FACTOR 256
 static const int ac_code_bits = 16;
 static const int ac_max_value = (1 << ac_code_bits) - 1;
 static const int ac_first_half = 1 << (ac_code_bits - 1);
@@ -17,7 +17,7 @@ static const int ac_last_quarter = ac_first_quarter | ac_first_half;
 
 struct ac_reader {
 	struct bits_reader *bits;
-	int past[3 * ac_factor];
+	int past[3 * AC_FACTOR];
 	int freq[3];
 	int index;
 	int count;
@@ -28,7 +28,7 @@ struct ac_reader {
 
 struct ac_writer {
 	struct bits_writer *bits;
-	int past[3 * ac_factor];
+	int past[3 * AC_FACTOR];
 	int freq[3];
 	int index;
 	int count;
@@ -58,14 +58,14 @@ struct ac_reader *ac_reader(struct bits_reader *bits)
 {
 	struct ac_reader *ac = malloc(sizeof(struct ac_reader));
 	ac->bits = bits;
-	for (int i = 0; i < ac_factor - 1; ++i)
+	for (int i = 0; i < AC_FACTOR - 1; ++i)
 		ac->past[i] = 1;
-	ac->past[ac_factor - 1] = 0;
-	ac->freq[0] = ac_factor - 1;
-	for (int i = ac_factor; i < 3 * ac_factor; ++i)
+	ac->past[AC_FACTOR - 1] = 0;
+	ac->freq[0] = AC_FACTOR - 1;
+	for (int i = AC_FACTOR; i < 3 * AC_FACTOR; ++i)
 		ac->past[i] = i & 1;
 	for (int i = 1; i < 3; ++i)
-		ac->freq[i] = ac_factor / 2;
+		ac->freq[i] = AC_FACTOR / 2;
 	ac->index = 0;
 	ac->count = 0;
 	ac->value = 0;
@@ -82,14 +82,14 @@ struct ac_writer *ac_writer(struct bits_writer *bits)
 {
 	struct ac_writer *ac = malloc(sizeof(struct ac_writer));
 	ac->bits = bits;
-	for (int i = 0; i < ac_factor - 1; ++i)
+	for (int i = 0; i < AC_FACTOR - 1; ++i)
 		ac->past[i] = 1;
-	ac->past[ac_factor - 1] = 0;
-	ac->freq[0] = ac_factor - 1;
-	for (int i = ac_factor; i < 3 * ac_factor; ++i)
+	ac->past[AC_FACTOR - 1] = 0;
+	ac->freq[0] = AC_FACTOR - 1;
+	for (int i = AC_FACTOR; i < 3 * AC_FACTOR; ++i)
 		ac->past[i] = i & 1;
 	for (int i = 1; i < 3; ++i)
-		ac->freq[i] = ac_factor / 2;
+		ac->freq[i] = AC_FACTOR / 2;
 	ac->index = 0;
 	ac->count = 0;
 	ac->lower = 0;
@@ -130,7 +130,7 @@ int ac_encode(struct ac_writer *ac, int bit, int freq)
 		return ac->count;
 	int range = ac->upper - ac->lower + 1;
 	int point = range * freq;
-	int offset = point / ac_factor;
+	int offset = point / AC_FACTOR;
 	if (bit)
 		ac->lower += offset;
 	else
@@ -162,8 +162,8 @@ int ac_decode(struct ac_reader *ac, int freq)
 {
 	int range = ac->upper - ac->lower + 1;
 	int point = range * freq;
-	int bit = point < (ac->value - ac->lower + 1) * ac_factor;
-	int offset = point / ac_factor;
+	int bit = point < (ac->value - ac->lower + 1) * AC_FACTOR;
+	int offset = point / AC_FACTOR;
 	if (bit)
 		ac->lower += offset;
 	else
@@ -196,12 +196,12 @@ int ac_decode(struct ac_reader *ac, int freq)
 
 int ac_put_bit(struct ac_writer *ac, int bit)
 {
-	return ac_encode(ac, bit, ac_factor / 2);
+	return ac_encode(ac, bit, AC_FACTOR / 2);
 }
 
 int ac_get_bit(struct ac_reader *ac)
 {
-	return ac_decode(ac, ac_factor / 2);
+	return ac_decode(ac, AC_FACTOR / 2);
 }
 
 int ac_write_bits(struct ac_writer *ac, int bits, int num)
@@ -232,7 +232,7 @@ void ac_update_freq(int *index, int *past, int *freq, int bit)
 	*freq += !bit - past[*index];
 	past[*index] = !bit;
 	*index += 1;
-	if (*index >= ac_factor)
+	if (*index >= AC_FACTOR)
 		*index = 0;
 }
 
@@ -243,19 +243,19 @@ int ac_clamp(int x, int a, int b)
 
 int put_ac(struct ac_writer *ac, int bit, int ctx)
 {
-	int ret = ac_encode(ac, bit, ac_clamp(ac->freq[ctx], 1, ac_factor - 1));
+	int ret = ac_encode(ac, bit, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 1));
 	if (ret)
 		return ret;
-	ac_update_freq(&ac->index, ac->past + ctx * ac_factor, ac->freq + ctx, bit);
+	ac_update_freq(&ac->index, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
 	return 0;
 }
 
 int get_ac(struct ac_reader *ac, int ctx)
 {
-	int bit = ac_decode(ac, ac_clamp(ac->freq[ctx], 1, ac_factor - 1));
+	int bit = ac_decode(ac, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 1));
 	if (bit < 0)
 		return bit;
-	ac_update_freq(&ac->index, ac->past + ctx * ac_factor, ac->freq + ctx, bit);
+	ac_update_freq(&ac->index, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
 	return bit;
 }
 
