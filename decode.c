@@ -135,8 +135,8 @@ int decode_root(struct vli_reader *vli, int *val, int num)
 
 int main(int argc, char **argv)
 {
-	if (argc != 3) {
-		fprintf(stderr, "usage: %s input.dwt output.pnm\n", argv[0]);
+	if (argc < 3 || argc > 4) {
+		fprintf(stderr, "usage: %s input.dwt output.pnm [PIXELS]\n", argv[0]);
 		return 1;
 	}
 	struct bytes_reader *bytes = bytes_reader(argv[1]);
@@ -232,6 +232,11 @@ end:
 	delete_vli_reader(vli);
 	close_bits_reader(bits);
 	close_bytes_reader(bytes);
+	if (argc >= 4) {
+		int pixels_max = atoi(argv[3]);
+		while (level >= 0 && pixels[level+1] > pixels_max)
+			--level;
+	}
 	for (int chan = 0; chan < channels; ++chan)
 		process(buffers[chan] + pixels[0], pixels[level + 1] - pixels[0]);
 	levels = level + 1;
