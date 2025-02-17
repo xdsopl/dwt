@@ -161,12 +161,13 @@ int main(int argc, char **argv)
 	struct vli_reader *vli = vli_reader(bits);
 	int lengths[16], pixels[16], widths[16], heights[16];
 	int levels = compute_lengths(lengths, pixels, widths, heights, width, height, min_len);
+	int levels_max = levels;
 	if (argc >= 4) {
 		int pixels_max = atoi(argv[3]);
-		while (levels > 0 && pixels[levels] > pixels_max)
-			--levels;
-		width = widths[levels];
-		height = heights[levels];
+		while (levels_max > 0 && pixels[levels_max] > pixels_max)
+			--levels_max;
+		width = widths[levels_max];
+		height = heights[levels_max];
 	}
 	int total = width * height;
 	int channels = color ? 3 : 1;
@@ -195,7 +196,9 @@ int main(int argc, char **argv)
 			missing[chan * 16 + i] = planes[chan];
 	int level = -1;
 	struct rle_reader *rle = rle_reader(vli);
-	if (planes_max == planes[0] && levels) {
+	if (!levels_max)
+		goto end;
+	if (planes_max == planes[0]) {
 		int num = pixels[1] - pixels[0];
 		level = 0;
 		if (decode_plane(rle, buffers[0] + pixels[0], num, planes[0] - 1))
@@ -207,6 +210,8 @@ int main(int argc, char **argv)
 			num = pixels[l + 1] - pixels[l];
 			l < levels && l <= layers + 1; off += num, ++l,
 			num = pixels[l + 1] - pixels[l]) {
+			if (l >= levels_max)
+				goto end;
 			for (int chan = 0; chan < 1; ++chan) {
 				int plane = planes_max - 1 - (layers + 1 - l);
 				if (plane < 0 || plane >= planes[chan])
@@ -222,6 +227,8 @@ int main(int argc, char **argv)
 			num = pixels[l + 1] - pixels[l];
 			l < levels && l <= layers; off += num, ++l,
 			num = pixels[l + 1] - pixels[l]) {
+			if (l >= levels_max)
+				goto end;
 			for (int chan = 1; chan < channels; ++chan) {
 				int plane = planes_max - 1 - (layers - l);
 				if (plane < 0 || plane >= planes[chan])
