@@ -255,7 +255,7 @@ int putval(struct ac_writer *ac, int val) {
 		return -1;
 	if (ac_write_bits(ac, val, order))
 		return -1;
-	order -= 1;
+	order -= 2;
 	if (order < 0)
 		order = 0;
 	return 0;
@@ -272,7 +272,7 @@ int getval(struct ac_reader *ac) {
 		return -1;
 	if (ac_read_bits(ac, &val, order))
 		return -1;
-	order -= 1;
+	order -= 2;
 	if (order < 0)
 		order = 0;
 	return val + sum;
