@@ -243,21 +243,98 @@ int ac_clamp(int x, int a, int b)
 	return x < a ? a : x > b ? b : x;
 }
 
+int putval(struct ac_writer *ac, int val) {
+	static int order;
+	while (val >= 1 << order) {
+		if (ac_put_bit(ac, 0))
+			return -1;
+		val -= 1 << order;
+		order += 1;
+	}
+	if (ac_put_bit(ac, 1))
+		return -1;
+	if (ac_write_bits(ac, val, order))
+		return -1;
+	order -= 1;
+	if (order < 0)
+		order = 0;
+	return 0;
+}
+
+int getval(struct ac_reader *ac) {
+	static int order;
+	int val, sum = 0, ret;
+	while ((ret = ac_get_bit(ac)) == 0) {
+		sum += 1 << order;
+		order += 1;
+	}
+	if (ret < 0)
+		return -1;
+	if (ac_read_bits(ac, &val, order))
+		return -1;
+	order -= 1;
+	if (order < 0)
+		order = 0;
+	return val + sum;
+}
+
+int putrle(struct ac_writer *ac, int bit) {
+	static int cnt;
+	if (cnt < 0)
+		return -1;
+	if (bit)
+		return cnt = putval(ac, cnt);
+	cnt++;
+	return 0;
+}
+
+int getrle(struct ac_reader *ac) {
+	static int cnt;
+	if (cnt < 0)
+		return -1;
+	if (!cnt) {
+		cnt = getval(ac);
+		if (cnt < 0)
+			return -1;
+		return !cnt;
+	}
+	return cnt-- == 1;
+}
+
 int put_ac(struct ac_writer *ac, int bit, int ctx)
 {
-	int ret = ac_encode(ac, bit, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 1));
-	if (ret)
-		return ret;
-	ac_update_freq(ac->index + ctx, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
+	static int prev;
+	if (ctx) {
+		if (prev && putrle(ac, 1))
+			return -1;
+		prev = 0;
+		--ctx;
+		int ret = ac_encode(ac, bit, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 1));
+		if (ret)
+			return ret;
+		ac_update_freq(ac->index + ctx, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
+	} else {
+		prev = 1;
+		if (putrle(ac, bit))
+			return -1;
+	}
 	return 0;
 }
 
 int get_ac(struct ac_reader *ac, int ctx)
 {
-	int bit = ac_decode(ac, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 1));
-	if (bit < 0)
+	static int prev;
+	if (ctx) {
+		if (prev && getrle(ac) != 1)
+			return -1;
+		prev = 0;
+		--ctx;
+		int bit = ac_decode(ac, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 1));
+		if (bit >= 0)
+			ac_update_freq(ac->index + ctx, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
 		return bit;
-	ac_update_freq(ac->index + ctx, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
-	return bit;
+	}
+	prev = 1;
+	return getrle(ac);
 }
 

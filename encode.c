@@ -69,11 +69,11 @@ int encode_plane(struct ac_writer *ac, int *val, int num, int plane)
 	for (int i = 0; i < num; ++i) {
 		if (!(val[i] & ref_mask)) {
 			int bit = val[i] & bit_mask;
-			int ret = put_ac(ac, bit, 0);
+			int ret = put_ac(ac, bit, plane < 6);
 			if (ret)
 				return ret;
 			if (bit) {
-				int ret = put_ac(ac, val[i] & sgn_mask, 1);
+				int ret = put_ac(ac, val[i] & sgn_mask, 2);
 				if (ret)
 					return ret;
 				val[i] |= sig_mask;
@@ -83,7 +83,7 @@ int encode_plane(struct ac_writer *ac, int *val, int num, int plane)
 	for (int i = 0; i < num; ++i) {
 		if (val[i] & ref_mask) {
 			int bit = val[i] & bit_mask;
-			int ret = put_ac(ac, bit, 2);
+			int ret = put_ac(ac, bit, 3);
 			if (ret)
 				return ret;
 		} else if (val[i] & sig_mask) {
