@@ -126,17 +126,32 @@ void delete_ac_writer(struct ac_writer *ac)
 	free(ac);
 }
 
-int ac_encode(struct ac_writer *ac, int bit, int freq)
+int ac_encode(struct ac_writer *ac, int symbol, int freq, int binary)
 {
 	if (ac->count < 0)
 		return ac->count;
 	int range = ac->upper - ac->lower + 1;
 	int point = range * freq;
 	int offset = point / AC_FACTOR;
-	if (bit)
-		ac->lower += offset;
-	else
-		ac->upper = ac->lower + offset - 1;
+	if (binary) {
+		if (symbol)
+			ac->lower += offset;
+		else
+			ac->upper = ac->lower + offset - 1;
+	} else {
+		int point1 = range * (AC_FACTOR - 1);
+		int offset1 = point1 / AC_FACTOR;
+		if (symbol == 0) {
+			ac->upper = ac->lower + offset - 1;
+		} else if (symbol == 1) {
+			ac->upper = ac->lower + offset1 - 1;
+			ac->lower += offset;
+		} else if (symbol == 2) {
+			ac->lower += offset1;
+		} else {
+			return -1;
+		}
+	}
 	while (1) {
 		if (ac->upper < ac_first_half) {
 			if (ac_put_bits(ac, 0))
@@ -160,16 +175,34 @@ int ac_encode(struct ac_writer *ac, int bit, int freq)
 	return 0;
 }
 
-int ac_decode(struct ac_reader *ac, int freq)
+int ac_decode(struct ac_reader *ac, int freq, int binary)
 {
+	int value = (ac->value - ac->lower + 1) * AC_FACTOR;
 	int range = ac->upper - ac->lower + 1;
 	int point = range * freq;
-	int bit = point < (ac->value - ac->lower + 1) * AC_FACTOR;
 	int offset = point / AC_FACTOR;
-	if (bit)
-		ac->lower += offset;
-	else
-		ac->upper = ac->lower + offset - 1;
+	int symbol;
+	if (binary) {
+		symbol = value > point;
+		if (symbol)
+			ac->lower += offset;
+		else
+			ac->upper = ac->lower + offset - 1;
+	} else {
+		int point1 = range * (AC_FACTOR - 1);
+		int offset1 = point1 / AC_FACTOR;
+		if (value <= point) {
+			symbol = 0;
+			ac->upper = ac->lower + offset - 1;
+		} else if (value <= point1) {
+			symbol = 1;
+			ac->upper = ac->lower + offset1 - 1;
+			ac->lower += offset;
+		} else {
+			symbol = 2;
+			ac->lower += offset1;
+		}
+	}
 	while (1) {
 		if (ac->upper < ac_first_half) {
 			// nothing to see here
@@ -193,17 +226,17 @@ int ac_decode(struct ac_reader *ac, int freq)
 			return ret;
 		ac->value |= ret;
 	}
-	return bit;
+	return symbol;
 }
 
 int ac_put_bit(struct ac_writer *ac, int bit)
 {
-	return ac_encode(ac, bit, AC_FACTOR / 2);
+	return ac_encode(ac, bit, AC_FACTOR / 2, 1);
 }
 
 int ac_get_bit(struct ac_reader *ac)
 {
-	return ac_decode(ac, AC_FACTOR / 2);
+	return ac_decode(ac, AC_FACTOR / 2, 1);
 }
 
 int ac_write_bits(struct ac_writer *ac, int bits, int num)
@@ -309,7 +342,13 @@ int put_ac(struct ac_writer *ac, int bit, int ctx)
 			return -1;
 		prev = 0;
 		--ctx;
-		int ret = ac_encode(ac, bit, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 1));
+		if (rand() % 1000 == 0) {
+			fprintf(stderr, "sending escape symbol\n");
+			int ret = ac_encode(ac, 2, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 2), 0);
+			if (ret)
+				return ret;
+		}
+		int ret = ac_encode(ac, !!bit, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 2), 0);
 		if (ret)
 			return ret;
 		ac_update_freq(ac->index + ctx, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
@@ -329,7 +368,11 @@ int get_ac(struct ac_reader *ac, int ctx)
 			return -1;
 		prev = 0;
 		--ctx;
-		int bit = ac_decode(ac, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 1));
+		int bit = ac_decode(ac, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 2), 0);
+		if (bit == 2) {
+			fprintf(stderr, "got escape symbol\n");
+			bit = ac_decode(ac, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 2), 0);
+		}
 		if (bit >= 0)
 			ac_update_freq(ac->index + ctx, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
 		return bit;
