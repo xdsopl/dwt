@@ -329,7 +329,7 @@ int put_ac(struct ac_writer *ac, int bit, int ctx)
 			int ret = ac_encode(ac, 2, ac_clamp(ac->freq[0], 1, AC_FACTOR - 2), 0);
 			if (ret)
 				return ret;
-			ret = ac_put_val(ac, cnt);
+			ret = ac_put_val(ac, cnt - ac_rle_cnt);
 			if (ret)
 				return ret;
 		}
@@ -372,6 +372,7 @@ int get_ac(struct ac_reader *ac, int ctx)
 		cnt = ac_get_val(ac);
 		if (cnt < 0)
 			return cnt;
+		cnt += ac_rle_cnt;
 	}
 	--cnt;
 	return 0;
