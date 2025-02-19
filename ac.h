@@ -19,7 +19,7 @@ struct ac_reader {
 	struct bits_reader *bits;
 	int past[3 * AC_FACTOR];
 	int freq[3];
-	int index;
+	int index[3];
 	int count;
 	int value;
 	int lower;
@@ -30,7 +30,7 @@ struct ac_writer {
 	struct bits_writer *bits;
 	int past[3 * AC_FACTOR];
 	int freq[3];
-	int index;
+	int index[3];
 	int count;
 	int lower;
 	int upper;
@@ -66,7 +66,8 @@ struct ac_reader *ac_reader(struct bits_reader *bits)
 		ac->past[i] = i & 1;
 	for (int i = 1; i < 3; ++i)
 		ac->freq[i] = AC_FACTOR / 2;
-	ac->index = 0;
+	for (int i = 0; i < 3; ++i)
+		ac->index[i] = 0;
 	ac->count = 0;
 	ac->value = 0;
 	ac->lower = 0;
@@ -90,7 +91,8 @@ struct ac_writer *ac_writer(struct bits_writer *bits)
 		ac->past[i] = i & 1;
 	for (int i = 1; i < 3; ++i)
 		ac->freq[i] = AC_FACTOR / 2;
-	ac->index = 0;
+	for (int i = 0; i < 3; ++i)
+		ac->index[i] = 0;
 	ac->count = 0;
 	ac->lower = 0;
 	ac->upper = ac_max_value;
@@ -246,7 +248,7 @@ int put_ac(struct ac_writer *ac, int bit, int ctx)
 	int ret = ac_encode(ac, bit, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 1));
 	if (ret)
 		return ret;
-	ac_update_freq(&ac->index, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
+	ac_update_freq(ac->index + ctx, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
 	return 0;
 }
 
@@ -255,7 +257,7 @@ int get_ac(struct ac_reader *ac, int ctx)
 	int bit = ac_decode(ac, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 1));
 	if (bit < 0)
 		return bit;
-	ac_update_freq(&ac->index, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
+	ac_update_freq(ac->index + ctx, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
 	return bit;
 }
 
