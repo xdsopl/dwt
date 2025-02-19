@@ -9,6 +9,7 @@ Copyright 2025 Ahmet Inan <xdsopl@gmail.com>
 #include "bits.h"
 
 #define AC_FACTOR 256
+static const int ac_rle_cnt = AC_FACTOR / 2;
 static const int ac_code_bits = 16;
 static const int ac_max_value = (1 << ac_code_bits) - 1;
 static const int ac_first_half = 1 << (ac_code_bits - 1);
@@ -276,7 +277,8 @@ int ac_clamp(int x, int a, int b)
 	return x < a ? a : x > b ? b : x;
 }
 
-int putval(struct ac_writer *ac, int val) {
+int ac_put_val(struct ac_writer *ac, int val)
+{
 	static int order;
 	while (val >= 1 << order) {
 		if (ac_put_bit(ac, 0))
@@ -294,7 +296,8 @@ int putval(struct ac_writer *ac, int val) {
 	return 0;
 }
 
-int getval(struct ac_reader *ac) {
+int ac_get_val(struct ac_reader *ac)
+{
 	static int order;
 	int val, sum = 0, ret;
 	while ((ret = ac_get_bit(ac)) == 0) {
@@ -311,73 +314,66 @@ int getval(struct ac_reader *ac) {
 	return val + sum;
 }
 
-int putrle(struct ac_writer *ac, int bit) {
-	static int cnt;
-	if (cnt < 0)
-		return -1;
-	if (bit)
-		return cnt = putval(ac, cnt);
-	cnt++;
-	return 0;
-}
-
-int getrle(struct ac_reader *ac) {
-	static int cnt;
-	if (cnt < 0)
-		return -1;
-	if (!cnt) {
-		cnt = getval(ac);
-		if (cnt < 0)
-			return -1;
-		return !cnt;
-	}
-	return cnt-- == 1;
-}
-
 int put_ac(struct ac_writer *ac, int bit, int ctx)
 {
-	static int prev;
-	if (ctx) {
-		if (prev && putrle(ac, 1))
-			return -1;
-		prev = 0;
-		--ctx;
-		if (rand() % 1000 == 0) {
-			fprintf(stderr, "sending escape symbol\n");
-			int ret = ac_encode(ac, 2, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 2), 0);
+	static int cnt, prv = -1;
+	if ((!prv && ctx) || (!ctx && bit)) {
+		if (cnt < ac_rle_cnt) {
+			while (cnt--) {
+				int ret = ac_encode(ac, 0, ac_clamp(ac->freq[0], 1, AC_FACTOR - 2), 0);
+				if (ret)
+					return ret;
+				ac_update_freq(ac->index, ac->past, ac->freq, 0);
+			}
+		} else {
+			int ret = ac_encode(ac, 2, ac_clamp(ac->freq[0], 1, AC_FACTOR - 2), 0);
+			if (ret)
+				return ret;
+			ret = ac_put_val(ac, cnt);
 			if (ret)
 				return ret;
 		}
-		int ret = ac_encode(ac, !!bit, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 2), 0);
+		cnt = 0;
+	}
+	prv = ctx;
+	if (ctx) {
+		int ret = ac_encode(ac, bit, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 1), 1);
+		if (ret == 0)
+			ac_update_freq(ac->index + ctx, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
+		return ret;
+	}
+	if (bit) {
+		int ret = ac_encode(ac, 1, ac_clamp(ac->freq[0], 1, AC_FACTOR - 2), 0);
 		if (ret)
 			return ret;
-		ac_update_freq(ac->index + ctx, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
+		ac_update_freq(ac->index, ac->past, ac->freq, 1);
 	} else {
-		prev = 1;
-		if (putrle(ac, bit))
-			return -1;
+		++cnt;
 	}
 	return 0;
 }
 
 int get_ac(struct ac_reader *ac, int ctx)
 {
-	static int prev;
+	static int cnt;
 	if (ctx) {
-		if (prev && getrle(ac) != 1)
-			return -1;
-		prev = 0;
-		--ctx;
-		int bit = ac_decode(ac, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 2), 0);
-		if (bit == 2) {
-			fprintf(stderr, "got escape symbol\n");
-			bit = ac_decode(ac, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 2), 0);
-		}
+		int bit = ac_decode(ac, ac_clamp(ac->freq[ctx], 1, AC_FACTOR - 1), 1);
 		if (bit >= 0)
 			ac_update_freq(ac->index + ctx, ac->past + ctx * AC_FACTOR, ac->freq + ctx, bit);
 		return bit;
 	}
-	prev = 1;
-	return getrle(ac);
+	if (!cnt) {
+		int bit = ac_decode(ac, ac_clamp(ac->freq[0], 1, AC_FACTOR - 2), 0);
+		if (bit < 2) {
+			if (bit >= 0)
+				ac_update_freq(ac->index, ac->past, ac->freq, bit);
+			return bit;
+		}
+		cnt = ac_get_val(ac);
+		if (cnt < 0)
+			return cnt;
+	}
+	--cnt;
+	return 0;
 }
 
