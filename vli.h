@@ -66,37 +66,39 @@ int vli_read_bits(struct vli_reader *vli, int *b, int n)
 
 int put_vli(struct vli_writer *vli, int val)
 {
-	int ret;
-	while (val >= 1 << vli->order) {
+	int ret, cnt = vli->order;
+	while (val >= 1 << cnt) {
 		if ((ret = put_bit(vli->bits, 0)))
 			return ret;
-		val -= 1 << vli->order;
-		vli->order += 1;
+		val -= 1 << cnt;
+		cnt += 1;
 	}
 	if ((ret = put_bit(vli->bits, 1)))
 		return ret;
-	if ((ret = write_bits(vli->bits, val, vli->order)))
+	if ((ret = write_bits(vli->bits, val, cnt)))
 		return ret;
-	vli->order -= 2;
-	if (vli->order < 0)
-		vli->order = 0;
+	cnt -= 1;
+	if (cnt < 0)
+		cnt = 0;
+	vli->order = (vli->order + cnt) / 2;
 	return 0;
 }
 
 int get_vli(struct vli_reader *vli)
 {
-	int val, sum = 0, ret;
+	int cnt = vli->order, sum = 0, ret, val;
 	while ((ret = get_bit(vli->bits)) == 0) {
-		sum += 1 << vli->order;
-		vli->order += 1;
+		sum += 1 << cnt;
+		cnt += 1;
 	}
 	if (ret < 0)
 		return ret;
-	if ((ret = read_bits(vli->bits, &val, vli->order)))
+	if ((ret = read_bits(vli->bits, &val, cnt)))
 		return ret;
-	vli->order -= 2;
-	if (vli->order < 0)
-		vli->order = 0;
+	cnt -= 1;
+	if (cnt < 0)
+		cnt = 0;
+	vli->order = (vli->order + cnt) / 2;
 	return val + sum;
 }
 
