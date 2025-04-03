@@ -116,16 +116,16 @@ void process(int *buf, int num)
 	}
 }
 
-int decode_root(struct vli_reader *vli, int *val, int num)
+int decode_root(struct bits_reader *bits, int *val, int num)
 {
-	int cnt = get_vli(vli);
-	if (cnt < 0)
-		return cnt;
+	int cnt;
+	if (read_bits(bits, &cnt, 4))
+		return -1;
 	for (int i = 0; cnt && i < num; ++i) {
-		int ret = vli_read_bits(vli, val + i, cnt);
+		int ret = read_bits(bits, val + i, cnt);
 		if (ret)
 			return ret;
-		if (val[i] && (ret = vli_get_bit(vli)))
+		if (val[i] && (ret = get_bit(bits)))
 			val[i] = -val[i];
 		if (ret < 0)
 			return ret;
@@ -158,7 +158,6 @@ int main(int argc, char **argv)
 	if (width < min_len || height < min_len)
 		return 1;
 	struct bits_reader *bits = bits_reader(bytes);
-	struct vli_reader *vli = vli_reader(bits);
 	int lengths[16], pixels[16], widths[16], heights[16];
 	int levels = compute_lengths(lengths, pixels, widths, heights, width, height, min_len);
 	int levels_max = levels;
@@ -178,11 +177,11 @@ int main(int argc, char **argv)
 		for (int i = 0; i < total; ++i)
 			buffers[chan][i] = 0;
 	for (int chan = 0; chan < channels; ++chan)
-		if (decode_root(vli, buffers[chan], pixels[0]))
+		if (decode_root(bits, buffers[chan], pixels[0]))
 			return 1;
 	int planes[channels];
 	for (int chan = 0; chan < channels; ++chan)
-		if ((planes[chan] = get_vli(vli)) < 0)
+		if (read_bits(bits, planes + chan, 4))
 			return 1;
 	int planes_max = 0;
 	for (int chan = 0; chan < channels; ++chan)
@@ -195,6 +194,7 @@ int main(int argc, char **argv)
 		for (int i = 0; i < levels; ++i)
 			missing[chan * 16 + i] = planes[chan];
 	int level = -1;
+	struct vli_reader *vli = vli_reader(bits);
 	struct rle_reader *rle = rle_reader(vli);
 	if (!levels_max)
 		goto end;
