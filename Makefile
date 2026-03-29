@@ -1,4 +1,4 @@
-CFLAGS = -std=c99 -W -Wall -Ofast
+CFLAGS = -std=c99 -W -Wall -O3 -ffast-math
 # CFLAGS += -g -fsanitize=address
 
 all: encode decode
